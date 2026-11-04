@@ -1,6 +1,6 @@
 # Environments: local, dev and prod
 
-Clutter runs in three places, and each has one job. Only local exists today. ADR-010 records this split; the steps to deploy are in `system-a-as-built.md` § Deploying to AWS.
+Clutter runs in three places, and each has one job. Only local exists today. ADR-010 records this split.
 
 | | Local | Dev | Prod |
 | --- | --- | --- | --- |
@@ -12,12 +12,27 @@ Clutter runs in three places, and each has one job. Only local exists today. ADR
 | **Backend** | the real Lambdas, run by `backend/devserver` | real Lambdas behind API Gateway in the dev AWS account | the same in the prod AWS account |
 | **Database** | Postgres in Docker | its own Supabase project | its own Supabase project |
 | **File storage (S3)** | the devserver's local S3, on disk | real S3 in the dev account | real S3 in the prod account |
-| **Sign-in** | `/dev/login`, or real Google through the capstone's client id while it still works | a Google OAuth client for dev | a separate Google OAuth client for prod |
-| **Generate Terraform** | runs when you save a diagram (the devserver stands in for the Supabase webhook) | a Supabase webhook on the dev project | a Supabase webhook on the prod project |
-| **Deploy and Ansible** | do not run (no ECS, SQS, STS or SSM) | run on Fargate into a sandbox customer account | run on Fargate into customers' accounts |
 | **Secrets live in** | `backend/devserver/.state/`, generated for you | `dev.tfvars` on the deployer's machine, never in git | a secret store, never on a laptop |
 | **Terraform state** | none | a state bucket in the dev account | a state bucket in the prod account |
 | **Data** | fake, wipe it any time | test data only | real customer data |
+
+## What each feature does where
+
+Dev and prod do not exist yet, so nothing has been tested there. Their columns say what is expected once they are set up.
+
+| Feature | Local (tested) | Dev (expected) | Prod (expected) |
+| --- | --- | --- | --- |
+| Sign in | Google, through the capstone's client for now | Google, our dev client | Google, our prod client |
+| Organizations, projects, diagrams | works | works | works |
+| Canvas: drag, connect, configure, save | works | works | works |
+| Link an AWS account | fake account only | real sandbox account | real customer account |
+| Generate Terraform on save | works (A2 stands in for the webhook) | works, once the webhook is set up | works, once the webhook is set up |
+| Read and download Terraform in the editor | works | works, once generation runs | works, once generation runs |
+| Upload Lambda code or a playbook | stored on disk | real S3 | real S3 |
+| Deploy and destroy | does not run | first real test happens here | customers |
+| Live deploy status, real deploy logs | does not run | runs with deploy | runs with deploy |
+| Run Ansible on a server | does not run | runs, needs a real EC2 server | customers |
+| `npm run smoke`, `npm run generated` | team tools | not available | not available |
 
 ## The rules
 
@@ -45,6 +60,24 @@ Clutter runs in three places, and each has one job. Only local exists today. ADR
 
 **Prod:** the same list again, as separate accounts and projects, plus a secret store, backups, a domain and monitoring. Decide these when dev has proved a full deploy.
 
+## Setting up a cloud environment
+
+The capstone deployment is gone. The API host baked into `frontend/Dockerfile.frontend` (`7c1aawofvl.execute-api.us-west-2.amazonaws.com`) returns NXDOMAIN, and the platform state bucket in `backend/infra/backend.tf` belongs to the capstone AWS account, which we cannot reach.
+
+These steps run once per cloud environment, after the changes in the next section. None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
+
+1. **An AWS account for the platform.** Bootstrap remote state with `backend/tfstate-infra`, then point `backend/infra/backend.tf` at the new bucket and lock table.
+2. **Postgres.** A Supabase project (or any Postgres with the `anon`, `authenticated` and `service_role` roles). Load `backend/storage-sql/application-tables.sql`, then `seed-resources.sql`. Turn on row-level security or turn off the Supabase Data API first.
+3. **A Google OAuth client** for sign-in. Replace the hard-coded client id in the frontend, and add `GOOGLE_CLIENT_ID` to the log-in Lambda's environment in `backend/infra/main.tf` (today it is never set, so log-in accepts tokens minted for any app).
+4. **Platform inputs** (`backend/infra/variables.tf`): `aws_region`, `jwt_secret`, `psql_connection_string`, `cloudformation_template_url`, `clutter_account_id`, `frontend_url`, `ansible_runner_image_tag`. The capstone team shared their tfvars file on Discord. It is not in the repo and must not be.
+5. **Build the Lambdas** with `backend/api/build.sh` (it lists all 34). `build_linux.sh` omits two.
+6. **Build and push the runner images** (`backend/infra/modules/fargate/ecr-scripts/*/build-and-push.sh`). The ECR repos are immutable, but the images are tagged `:latest`, so the second push fails.
+7. **`terraform apply` in `backend/infra`.** The Terraform defines no API Gateway deployment or stage, so the API must also be published by hand.
+8. **The Supabase database webhook** that calls `POST /terraform-engine` when a diagram changes. It is configured in Supabase, not in this repo. Without it, saving a diagram never generates code.
+9. **The frontend** with `NEXT_PUBLIC_API_ENDPOINT` set to the new API stage URL.
+
+Phase 0 (`.claude/findings/NOW.md`) comes before step 7 on any account reachable from the internet: today the generation endpoint needs no login.
+
 ## What must change before dev can exist
 
 These are A's files, so each is a seam or a decision (ADR-006). None is done yet.
@@ -59,6 +92,29 @@ These are A's files, so each is a seam or a decision (ADR-006). None is done yet
 | `GOOGLE_CLIENT_ID` is never set on the log-in Lambda | phase 0 item 4 |
 | Runner images are tagged `:latest` in immutable repositories | a version tag per build |
 | The generator's S3 region is fixed to `us-west-2` | use the environment's region |
+
+## Testing A in dev
+
+Nothing here has been run yet. A is proven when every step passes, in this order. Use a sandbox customer account, never a real one.
+
+1. Sign in with Google, using the dev client.
+2. Create an organization, a project and a diagram.
+3. Link the sandbox account through the real CloudFormation link, and paste back the role ARN.
+4. Draw a Lambda connected to an S3 bucket, and save.
+5. Press **Preview Terraform**: the files appear, with no warning.
+6. Press **Deploy**: live status runs, and the run ends in success.
+7. Check the AWS console of the sandbox account: the Lambda, the bucket and the IAM policy exist.
+8. Open the log files tab: the run's logs are there.
+9. Upload Lambda code, deploy again, and invoke the function.
+10. Run an Ansible playbook on an EC2 server from the diagram.
+11. Sign in as a second user in another organization: they cannot see any of this.
+12. Press **Destroy**: everything is gone from the sandbox account.
+
+Any failure is a bug in A or in the setup; fix it and repeat from that step.
+
+## Going to prod
+
+Prod comes after every dev step passes and phase 0 is done. Then repeat the setup with separate accounts, add a secret store, backups, a domain and monitoring, and run the same steps with a test organization and a sandbox account.
 
 ## Open choices
 

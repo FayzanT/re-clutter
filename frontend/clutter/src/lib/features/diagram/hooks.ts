@@ -6,6 +6,7 @@ import { VALID_LOADERS } from "next/dist/shared/lib/image-config";
 import { DiagramSummary, Project } from "../projects/types";
 import { diagramApi } from "./api";
 import { diagramKeys } from "./keys";
+import { filesPredateStatus } from "./types";
 import type {
   CreateDiagramInput,
   Diagram,
@@ -30,6 +31,24 @@ export const useDiagram = (token?: string | null, projectId?: string | null, dia
     queryFn: () => diagramApi.get(token as string, projectId as string, diagramId as string),
     enabled: !!token && !!projectId && !!diagramId,
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Generation runs just after a save returns, so the first answer can be behind
+// the save. pollWhileBehind keeps asking until the answer covers the latest save.
+// Nothing is cached: an old answer must never stand in for a new save.
+export const useTerraformFiles = (token: string | null, projectId: string, diagramId: string, pollWhileBehind: boolean) => {
+  return useQuery({
+    queryKey: diagramKeys.terraformFiles(projectId, diagramId),
+    queryFn: () => diagramApi.terraformFiles(token as string, projectId, diagramId),
+    enabled: !!token,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchInterval: (query) =>
+      pollWhileBehind && query.state.status !== "error" && !query.state.data?.current && !filesPredateStatus(query.state.data)
+        ? 1000
+        : false,
   });
 };
 

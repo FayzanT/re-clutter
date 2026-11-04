@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -74,7 +75,7 @@ func (g *TerraformGenerator) Generate(ctx context.Context, diagramID string, lay
 			errors = append(errors, internal.GenerationError{
 				NodeID:    res.SourceNodeID,
 				NodeLabel: string(res.Type),
-				ErrorType: "generation_error",
+				ErrorType: generationErrorType(err),
 				Message:   err.Error(),
 			})
 			continue
@@ -99,6 +100,15 @@ func (g *TerraformGenerator) Generate(ctx context.Context, diagramID string, lay
 		VariablesTF: "", // Variables are inlined for simplicity
 		OutputsTF:   strings.Join(outputBlocks, "\n"),
 	}, errors
+}
+
+// generationErrorType separates a failure of Clutter's templates, whose text the
+// user must not see, from a fault in the diagram, whose text they act on.
+func generationErrorType(err error) string {
+	if errors.Is(err, template.ErrFailed) {
+		return internal.ErrorTypeTemplate
+	}
+	return "generation_error"
 }
 
 // parseNodes converts diagram nodes to TerraformResources

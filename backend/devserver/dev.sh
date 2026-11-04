@@ -121,7 +121,7 @@ fi
 cat <<EOF
 
 Clutter is starting.
-  Open:   http://localhost:3000/dev/login   (or http://localhost:3000/login for Google)
+  Open:   http://localhost:3000/login
   Stop:   Ctrl+C here
 
 EOF

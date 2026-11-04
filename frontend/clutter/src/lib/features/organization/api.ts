@@ -13,6 +13,10 @@ import type {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_ENDPOINT;
 
+// The local dev gateway's own routes exist only here, never in a deployment.
+export const isLocalDevApi = process.env.NODE_ENV === "development"
+  && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(API_BASE ?? "");
+
 async function apiFetch<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
   if (!API_BASE) throw new Error("API_ENDPOINT is not set");
 
@@ -99,6 +103,14 @@ export const organizationApi = {
     return [...(json.data?.complete ?? []), ...(json.data?.incomplete ?? [])].filter(
       (account): account is OrganizationAwsAccount => !!account && typeof account === "object"
     );
+  },
+
+  // POST /dev/link-fake-account (local dev gateway only)
+  linkFakeAccount: async (token: string, organizationId: string): Promise<void> => {
+    await apiFetch<{ message: string }>("/dev/link-fake-account", token, {
+      method: "POST",
+      body: JSON.stringify({ organizationId }),
+    });
   },
 
   // DELETE /organization/:organizationId/accounts/:accountId

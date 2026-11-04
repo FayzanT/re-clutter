@@ -11,6 +11,6 @@
     "stop": "backend/devserver/stop.sh",
     "smoke": "backend/devserver/smoke.sh",
     "generated": "backend/devserver/generated.sh",
-    "link-account": "backend/devserver/link-fake-account.sh"
+    "seed": "python3 backend/devserver/seed-diagram.py"
   }
 }

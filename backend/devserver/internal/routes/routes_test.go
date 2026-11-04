@@ -259,8 +259,8 @@ func TestRoutesMatchMainTF(t *testing.T) {
 		}
 	}
 
-	if len(got) != 31 {
-		t.Errorf("main.tf has %d integrations; the devserver was written for 31", len(got))
+	if len(got) != 32 {
+		t.Errorf("main.tf has %d integrations; the devserver was written for 32", len(got))
 	}
 	for k, g := range got {
 		w, ok := want[k]

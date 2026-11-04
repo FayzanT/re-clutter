@@ -71,10 +71,13 @@ s3://clutter-us-west-2-..../
         └── {diagram-id}/
             └── terraform/
                 ├── main.tf      (provider + resources + IAM)
-                └── outputs.tf   (resource outputs)
+                ├── outputs.tf   (resource outputs; deleted when a diagram has none)
+                └── status.json  (whether the last run succeeded, read by the editor)
 ```
 
 Now: the `terraform/` folder is what the writer really uses; the `s3_path` in the Lambda's response omits it.
+
+Every run writes `status.json`. A failed run leaves the older `.tf` files in place and records the failure, so the editor can warn that they are out of date. Errors caused by the diagram keep their real message; infrastructure errors are stored as a fixed sentence, with the cause in the log. If an upload fails partway, the status says the files may be incomplete. A status that cannot be written is logged and does not fail the run. `GET /terraform-engine/files` (`backend/api/generic/terraformfiles`) reads all of this for the editor.
 
 ---
 

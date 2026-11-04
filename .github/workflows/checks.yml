@@ -1,8 +1,6 @@
 name: Checks
 
-# The shared gate before merging: the same checks as root CLAUDE.md § Commands that run without
-# AWS or Docker. The devserver smoke test needs Docker and is run locally (see the PR checklist in
-# the root README).
+# The shared gate before merging: the checks in root CLAUDE.md § Commands that need no AWS.
 on:
   pull_request:
   push:
@@ -35,6 +33,28 @@ jobs:
         run: |
           go -C backend/devserver vet ./...
           go -C backend/devserver test ./...
+
+  smoke:
+    # Runs A's real Lambdas through the devserver and calls every route.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/api/go.mod
+          cache-dependency-path: |
+            backend/api/go.sum
+            backend/devserver/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Start the backend
+        run: backend/devserver/dev.sh --backend-only
+      - name: Call every route
+        run: backend/devserver/smoke.sh
+      - name: Stop the backend
+        if: always()
+        run: backend/devserver/stop.sh
 
   frontend:
     runs-on: ubuntu-latest

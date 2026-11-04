@@ -50,7 +50,7 @@ type row struct {
 	reason  string
 }
 
-// check is one assertion outside the 31 route rows.
+// check is one assertion outside the 32 route rows.
 type check struct {
 	name string
 	ok   bool
@@ -246,14 +246,15 @@ func main() {
 	s3Dir := flag.String("s3-dir", "", "the local S3 store on disk (.state/s3)")
 	flag.Parse()
 	conn := os.Getenv("PSQL_CONNECTION_STRING")
-	if conn == "" || *s3Dir == "" {
-		fmt.Fprintln(os.Stderr, "smoke: PSQL_CONNECTION_STRING or -s3-dir is not set (run it through smoke.sh)")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if conn == "" || jwtSecret == "" || *s3Dir == "" {
+		fmt.Fprintln(os.Stderr, "smoke: PSQL_CONNECTION_STRING, JWT_SECRET or -s3-dir is not set (run it through smoke.sh)")
 		os.Exit(2)
 	}
 
 	r := &runner{api: strings.TrimRight(*api, "/"), client: &http.Client{Timeout: 30 * time.Second}, hit: map[string]bool{}}
 
-	// Dev sign-in (devserver only, not one of the 31 routes).
+	// Dev sign-in (devserver only, not one of the 32 routes).
 	login := r.do("GET", "/dev/login?format=json", nil, "")
 	if login.status != http.StatusCreated {
 		fmt.Fprintf(os.Stderr, "smoke: dev login failed (%d): %s\n", login.status, login.body)
@@ -357,7 +358,10 @@ func main() {
 	}, expectOK, 0, "", nil)
 	// Nothing in this run has called /terraform-engine yet: only the save can
 	// have produced these files.
-	r.checkGenerated(filepath.Join(*s3Dir, gateway.LocalDataBucket, orgID, projID, diaID, "terraform"))
+	tfDir := filepath.Join(*s3Dir, gateway.LocalDataBucket, orgID, projID, diaID, "terraform")
+	r.checkGenerated(tfDir)
+	filesPath := "/terraform-engine/files?projectId=" + projID + "&diagramId=" + diaID
+	r.checkFilesAfterSave(filesPath, tfDir)
 	r.call("GET", "/diagram?projectId="+projID+"&diagramId="+diaID, nil, expectOK, 0, "", func(rs resp) string {
 		var env struct {
 			Data json.RawMessage `json:"data"`
@@ -469,6 +473,22 @@ func main() {
 		return ""
 	})
 
+	// A second user, in an organization of their own: tenancy on the files route
+	// and on the fake-account route.
+	second, err := newSecondUser(r, conn, jwtSecret, sfx)
+	if err != nil {
+		fatal(r, "create the second user: "+err.Error())
+	}
+	r.checkFilesRefusals(filesPath, second)
+	r.checkLinkFakeAccount(orgID, second)
+	if err := second.remove(r, conn); err != nil {
+		fatal(r, "remove the second user: "+err.Error())
+	}
+
+	// These two saves change what the editor shows, so they run last.
+	r.checkFailedGeneration(projID, diaID, filesPath, tfDir)
+	r.checkEmptiedDiagram(projID, diaID, filesPath, tfDir)
+
 	// Clean up in reverse.
 	r.call("DELETE", "/organization/"+orgID+"/accounts/"+accountID, nil, expectOK, 0, "", nil)
 	r.call("DELETE", "/diagram?projectId="+projID+"&diagramId="+diaID, nil, expectOK, 0, "", nil)
@@ -532,6 +552,184 @@ func (r *runner) checkGenerated(dir string) {
 		}
 	}
 	r.checks = append(r.checks, check{name, false, problem})
+}
+
+// filesAnswer is the data of GET /terraform-engine/files.
+type filesAnswer struct {
+	Generated bool              `json:"generated"`
+	Current   bool              `json:"current"`
+	Files     map[string]string `json:"files"`
+	Status    *struct {
+		State string `json:"state"`
+		Error string `json:"error"`
+	} `json:"status"`
+}
+
+func parseFiles(rs resp) filesAnswer {
+	var env struct {
+		Data filesAnswer `json:"data"`
+	}
+	_ = json.Unmarshal(rs.body, &env)
+	return env.Data
+}
+
+// waitForFiles polls the route until the background generation has finished.
+func (r *runner) waitForFiles(path string, done func(filesAnswer) bool) filesAnswer {
+	var last filesAnswer
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		last = parseFiles(r.do("GET", path, nil, r.token))
+		if done(last) {
+			break
+		}
+	}
+	return last
+}
+
+func hasState(a filesAnswer, state string) bool {
+	return a.Current && a.Status != nil && a.Status.State == state
+}
+
+// checkFilesAfterSave reads the generated files through the route and compares
+// them with the files the generator wrote.
+func (r *runner) checkFilesAfterSave(path, dir string) {
+	r.waitForFiles(path, func(a filesAnswer) bool { return hasState(a, "success") })
+	r.call("GET", path, nil, expectOK, 0, "", func(rs resp) string {
+		a := parseFiles(rs)
+		if !hasState(a, "success") {
+			return "no current success status: " + summary(rs)
+		}
+		for _, name := range []string{"main.tf", "outputs.tf"} {
+			onDisk, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil || a.Files[name] != string(onDisk) {
+				return name + " does not match the file on disk"
+			}
+		}
+		if len(a.Files) != 2 {
+			return fmt.Sprintf("want 2 files, got %d", len(a.Files))
+		}
+		return ""
+	})
+}
+
+// secondUser is a real user with a real token and an organization of their own.
+type secondUser struct {
+	id, token, orgID string
+}
+
+func newSecondUser(r *runner, connString, secret, sfx string) (*secondUser, error) {
+	ctx := context.Background()
+	c, err := pgx.Connect(ctx, connString)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close(ctx)
+	u := devauth.UserData{Uuid: uuid.NewString(), Email: "smoke-" + sfx + "@clutter.localhost", FullName: "Smoke Second User", CreatedAt: time.Now().UTC().Format(time.RFC3339)}
+	if _, err := c.Exec(ctx, `INSERT INTO users (id, email, full_name, picture_url) VALUES ($1, $2, $3, '')`, u.Uuid, u.Email, u.FullName); err != nil {
+		return nil, err
+	}
+	token, _, err := devauth.Sign(u, []byte(secret), time.Now())
+	if err != nil {
+		return nil, err
+	}
+	org := r.do("POST", "/organization", map[string]string{"organizationName": "Smoke Second Org " + sfx, "description": "Created by the devserver smoke test"}, token)
+	id := str(org.json, "data", "id")
+	if id == "" {
+		return nil, fmt.Errorf("organization create: %s", summary(org))
+	}
+	return &secondUser{id: u.Uuid, token: token, orgID: id}, nil
+}
+
+func (s *secondUser) remove(r *runner, connString string) error {
+	if rs := r.do("DELETE", "/organization/"+s.orgID, nil, s.token); rs.status != http.StatusOK {
+		return fmt.Errorf("organization delete: %s", summary(rs))
+	}
+	ctx := context.Background()
+	c, err := pgx.Connect(ctx, connString)
+	if err != nil {
+		return err
+	}
+	defer c.Close(ctx)
+	_, err = c.Exec(ctx, `DELETE FROM users WHERE id = $1`, s.id)
+	return err
+}
+
+// checkFilesRefusals proves the route answers neither a stranger nor a caller
+// with no token.
+func (r *runner) checkFilesRefusals(path string, second *secondUser) {
+	owner := r.token
+	defer func() { r.token = owner }()
+	r.token = second.token
+	r.call("GET", path, nil, expectStatus, http.StatusNotFound, "a member of another organization gets no answer about this diagram", nil)
+	r.token = ""
+	r.call("GET", path, nil, expectStatus, http.StatusUnauthorized, "API Gateway refuses a call with no token", nil)
+}
+
+// checkLinkFakeAccount drives the dev route: it links for a member, and the
+// real Lambdas refuse anyone else.
+func (r *runner) checkLinkFakeAccount(orgID string, second *secondUser) {
+	const name = "POST " + gateway.LinkFakeAccountPath
+	stranger := r.do("POST", gateway.LinkFakeAccountPath, map[string]string{"organizationId": orgID}, second.token)
+	r.checks = append(r.checks, check{name + " for another organization", stranger.status == http.StatusForbidden, fmt.Sprintf("%d", stranger.status)})
+	anonymous := r.do("POST", gateway.LinkFakeAccountPath, map[string]string{"organizationId": orgID}, "")
+	r.checks = append(r.checks, check{name + " with no token", anonymous.status == http.StatusUnauthorized, fmt.Sprintf("%d", anonymous.status)})
+
+	linked := r.do("POST", gateway.LinkFakeAccountPath, map[string]string{"organizationId": second.orgID}, second.token)
+	accounts := r.do("GET", "/organization/"+second.orgID+"/accounts", nil, second.token)
+	var env struct {
+		Data struct {
+			Complete []any `json:"complete"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(accounts.body, &env)
+	r.checks = append(r.checks, check{name + " for a member", linked.status == http.StatusOK && len(env.Data.Complete) == 1, fmt.Sprintf("%d, %d linked accounts", linked.status, len(env.Data.Complete))})
+
+	again := r.do("POST", gateway.LinkFakeAccountPath, map[string]string{"organizationId": second.orgID}, second.token)
+	accounts = r.do("GET", "/organization/"+second.orgID+"/accounts", nil, second.token)
+	_ = json.Unmarshal(accounts.body, &env)
+	r.checks = append(r.checks, check{name + " a second time links nothing", again.status == http.StatusOK && len(env.Data.Complete) == 1, fmt.Sprintf("%d, %d linked accounts", again.status, len(env.Data.Complete))})
+}
+
+// checkFailedGeneration saves a diagram the generator refuses: the status says
+// so and the last good files stay.
+func (r *runner) checkFailedGeneration(projID, diaID, path, dir string) {
+	const name = "a failed generation reports its error and keeps the last files"
+	before, err := os.ReadFile(filepath.Join(dir, "main.tf"))
+	if err != nil {
+		r.checks = append(r.checks, check{name, false, err.Error()})
+		return
+	}
+	bad := map[string]any{"nodes": []any{map[string]any{
+		"id": uuid.NewString(), "type": "awsService", "position": map[string]any{"x": 0, "y": 0},
+		"data": map[string]any{"label": "Widget", "img": "/aws/lambda.png"},
+	}}, "edges": []any{}}
+	if rs := r.do("PUT", "/diagram", map[string]any{"projectId": projID, "diagramId": diaID, "name": "Smoke Diagram", "data": bad}, r.token); rs.status != http.StatusOK {
+		r.checks = append(r.checks, check{name, false, summary(rs)})
+		return
+	}
+	a := r.waitForFiles(path, func(a filesAnswer) bool { return hasState(a, "failed") })
+	after, _ := os.ReadFile(filepath.Join(dir, "main.tf"))
+	ok := hasState(a, "failed") && strings.Contains(a.Status.Error, "Widget") && string(after) == string(before) && a.Files["main.tf"] == string(before) && a.Files["outputs.tf"] != ""
+	note := fmt.Sprintf("%d files kept", len(a.Files))
+	if a.Status != nil {
+		note += ", error: " + a.Status.Error
+	}
+	r.checks = append(r.checks, check{name, ok, note})
+}
+
+// checkEmptiedDiagram saves a diagram with no nodes: it generates no outputs, so
+// the previous outputs.tf must go.
+func (r *runner) checkEmptiedDiagram(projID, diaID, path, dir string) {
+	const name = "emptying a diagram removes outputs.tf"
+	empty := map[string]any{"nodes": []any{}, "edges": []any{}}
+	if rs := r.do("PUT", "/diagram", map[string]any{"projectId": projID, "diagramId": diaID, "name": "Smoke Diagram", "data": empty}, r.token); rs.status != http.StatusOK {
+		r.checks = append(r.checks, check{name, false, summary(rs)})
+		return
+	}
+	a := r.waitForFiles(path, func(a filesAnswer) bool { return hasState(a, "success") })
+	_, statErr := os.Stat(filepath.Join(dir, "outputs.tf"))
+	_, listed := a.Files["outputs.tf"]
+	ok := hasState(a, "success") && !listed && os.IsNotExist(statErr) && strings.Contains(a.Files["main.tf"], `provider "aws"`) && !strings.Contains(a.Files["main.tf"], "aws_lambda_function")
+	r.checks = append(r.checks, check{name, ok, fmt.Sprintf("%d files left, outputs.tf on disk: %v", len(a.Files), statErr == nil)})
 }
 
 // checkBrowserUpload does what the browser does with a presigned URL: a CORS
@@ -664,7 +862,7 @@ func deleteFixtureJobs(connString, id, playbookKey string) error {
 	return err
 }
 
-// gatewayChecks prints checks of the gateway itself, outside the 31 rows,
+// gatewayChecks prints checks of the gateway itself, outside the 32 rows,
 // after the checks the route calls recorded along the way.
 func gatewayChecks(r *runner, s3Endpoint string) {
 	cs := r.checks
@@ -716,7 +914,7 @@ func gatewayChecks(r *runner, s3Endpoint string) {
 		cs = append(cs, check{"ECS call to the AWS endpoint", res.StatusCode == 403 && len(refused) == 1, fmt.Sprintf("%d, refused %v", res.StatusCode, refused)})
 	}
 
-	fmt.Println("Gateway checks (not counted in the 31 routes):")
+	fmt.Println("Gateway checks (not counted in the 32 routes):")
 	w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 	for _, c := range cs {
 		v := "PASS"

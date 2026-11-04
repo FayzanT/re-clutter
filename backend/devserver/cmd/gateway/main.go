@@ -119,13 +119,16 @@ func run(logger *log.Logger) error {
 	}
 
 	issuer := &devauth.Issuer{ConnString: cfg.PSQLConnString, Secret: []byte(cfg.JWTSecret), FrontendOrigin: frontOrigin}
-	apiHandler := gateway.NewServer(pool, logger, map[string]http.Handler{
+	devRoutes := map[string]http.Handler{
 		"/dev/login":     issuer.RedirectHandler(),
 		"/dev/aws-calls": noAWS.CallsHandler(),
 		"/dev/healthz": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("ok\n"))
 		}),
-	})
+	}
+	apiHandler := gateway.NewServer(pool, logger, devRoutes)
+	// This route calls back into the server, so it is added once the server exists.
+	devRoutes[gateway.LinkFakeAccountPath] = apiHandler.LinkFakeAccountHandler()
 	generation := gateway.NewGenerationHook(pool, cfg.PSQLConnString, logger)
 	apiHandler.Generation = generation
 	servers := []*http.Server{{Addr: *apiAddr, Handler: apiHandler, ReadHeaderTimeout: 10 * time.Second}}

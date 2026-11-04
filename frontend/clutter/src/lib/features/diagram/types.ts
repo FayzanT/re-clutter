@@ -36,6 +36,29 @@ export type DiagramApiItem = {
 // Diagram and DiagramApiItem now share the same shape
 export type Diagram = DiagramApiItem;
 
+// Mirrors terraformfiles.Status (backend/api/generic/terraformfiles).
+export type GenerationStatus = {
+  state: "success" | "failed";
+  error?: string;
+  finishedAt: string;
+  diagramUpdatedAt?: string;
+  filesIncomplete?: boolean;
+};
+
+// GET /terraform-engine/files. current is false until a generation run has
+// finished for the diagram's latest save.
+export type TerraformFiles = {
+  generated: boolean;
+  current: boolean;
+  files: Record<string, string>;
+  status: GenerationStatus | null;
+};
+
+// Files with no status were written before the generator recorded one. No run
+// is pending, so waiting for a status would wait forever.
+export const filesPredateStatus = (data?: TerraformFiles): boolean =>
+  !!data && data.status === null && Object.keys(data.files).length > 0;
+
 export type CreateDiagramInput = {
   projectId: string;
   name: string;

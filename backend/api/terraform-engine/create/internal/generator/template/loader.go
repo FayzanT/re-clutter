@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -10,6 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
+
+// ErrFailed marks a failure of Clutter's own templates or the bucket that holds
+// them, as opposed to a fault in the user's diagram. Its text holds bucket paths
+// and SDK errors, so it is for the log, never for the user.
+var ErrFailed = errors.New("terraform template failed")
 
 type Template struct {
 	Name    string
@@ -52,13 +58,13 @@ func (l *TemplateLoader) Load(ctx context.Context, templatePath string) (*Templa
 		Key:    aws.String(templatePath),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch template %s from S3: %w", templatePath, err)
+		return nil, fmt.Errorf("%w: failed to fetch template %s from S3: %w", ErrFailed, templatePath, err)
 	}
 	defer result.Body.Close()
 
 	content, err := io.ReadAll(result.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read template content: %w", err)
+		return nil, fmt.Errorf("%w: failed to read template content: %w", ErrFailed, err)
 	}
 
 	tmpl := &Template{

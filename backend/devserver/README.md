@@ -1,12 +1,12 @@
 # devserver
 
-This is **A2**: the extension that runs System A on one machine, without AWS, so the team can test what exists. It wraps A and does not change it. Development only.
+This is **A2**: the extension that runs System A on one machine, without AWS, so the team can test what exists. It wraps A, with one small exception: the local-only **Link fake account** button sits in A's frontend. Development only.
 
 It runs the real, unchanged Lambdas from `backend/api`. Each one is built for this machine and started in aws-lambda-go's RPC mode. A gateway on `127.0.0.1:8787` turns HTTP requests into API Gateway REST proxy events, the same way the platform's API Gateway does. It runs the real authorizer on protected routes and answers CORS preflights. Postgres runs in Docker, loaded from `backend/storage-sql`. S3 is a small local store on disk, so saving a diagram generates real Terraform files.
 
 ## Start and stop
 
-`npm run dev` at the repo root starts everything, and Ctrl+C stops it (root `README.md` step 4). Behind it are the scripts here: `dev.sh`, `stop.sh`, `smoke.sh`, `generated.sh` and `link-fake-account.sh`, with shared settings in `lib.sh`, and each has an `npm run` name. `dev.sh --backend-only` starts Postgres and the gateway without the frontend and returns.
+`npm run dev` at the repo root starts everything, and Ctrl+C stops it (root `README.md` step 4). Behind it are the scripts here: `dev.sh`, `stop.sh`, `smoke.sh`, `generated.sh` and `seed-diagram.py`, with shared settings in `lib.sh`, and each has an `npm run` name. The gateway also serves `POST /dev/link-fake-account` for the local-only button on the "AWS account required" popup; a real build shows no such button. `dev.sh --backend-only` starts Postgres and the gateway without the frontend and returns.
 
 ## Why the backend runs this way
 
@@ -14,7 +14,7 @@ Postgres runs in Docker because it is a ready-made image. The gateway and the La
 
 ## What it needs
 
-Nothing to configure: no `.env` file, no API keys, no accounts. `dev.sh` generates a local JWT secret and database password into `.state/` and passes every variable the Lambdas need. Real Google sign-in, ECS and SQS are the parts that need outside accounts; `docs/architecture/system-a-as-built.md` § Deploying to AWS lists them.
+Nothing to configure: no `.env` file, no API keys, no accounts. `dev.sh` generates a local JWT secret and database password into `.state/` and passes every variable the Lambdas need. ECS and SQS are the parts that need real accounts (`docs/architecture/environments.md`).
 
 ## If it does not start
 
@@ -23,18 +23,19 @@ Nothing to configure: no `.env` file, no API keys, no accounts. `dev.sh` generat
 | `Cannot connect to the Docker daemon` | open Docker Desktop and wait until it says it is running, then run `npm run dev` again |
 | `something already listens on 127.0.0.1:8787` (or 3000) | `npm run stop`, or find the process with `lsof -nP -iTCP:3000 -sTCP:LISTEN` and stop it |
 | the first `npm run dev` takes a minute or two | normal: it builds the Lambdas once |
-| the canvas says "AWS account required" | `npm run link-account` |
+| Google sign-in fails | sign in with `http://localhost:3000/dev/login`, a local test user (see [How sign-in works locally](#how-sign-in-works-locally)) |
+| the canvas says "AWS account required" | press **Link fake account** on that popup |
 | odd data, or you changed `backend/storage-sql` | `npm run stop -- --wipe`, then `npm run dev` reloads the schema |
-| a saved diagram has no files in `npm run generated` | read the `[webhook]` lines in `backend/devserver/.state/gateway.log`; a failed generation never fails the save |
+| Preview Terraform shows no files after a save | read the `[webhook]` lines in `backend/devserver/.state/gateway.log`; a failed generation never fails the save |
 | anything else | read the end of `backend/devserver/.state/gateway.log` |
 
 ## What works locally, and what only works in AWS
 
-Checked on 2026-11-04 with `smoke.sh` (all 31 routes, 34 calls: 30 pass, 3 need AWS, 1 expected failure, 0 fail). Sign-in, saving on the canvas and generation were checked in a browser on 2026-11-04.
+Checked on 2026-11-04 with `smoke.sh` (all 32 routes, 37 calls: 31 pass, 3 need AWS, 3 expected failures, 0 fail). Browser results are in `frontend/clutter/README.md`.
 
 | Feature | Locally | Why |
 | --- | --- | --- |
-| Sign in | works two ways: `/dev/login`, or real Google on `/login` | Google works through the capstone team's client id, so it can stop if they delete it; `/dev/login` needs nothing. Each Google account is a separate local user, which is how to test two users. |
+| Sign in | works two ways | see [How sign-in works locally](#how-sign-in-works-locally) |
 | Protected routes and the authorizer | work | the real authorizer runs; no token gives 401, a bad token gives 403 |
 | Organizations: create, list, get, update, delete | work | Postgres only |
 | AWS account link: stack URL, list, submit role ARN, delete | work | Postgres only; the CloudFormation link is built but never opened, and the ARN is never checked against AWS (it isn't in AWS either) |
@@ -49,8 +50,6 @@ Checked on 2026-11-04 with `smoke.sh` (all 31 routes, 34 calls: 30 pass, 3 need 
 | Submit an Ansible job (`POST /ansible/jobs`) | only in AWS | the playbook checks pass in the local S3, then queueing on SQS is refused and the job is marked `FAILED` |
 | Ansible job logs | route works, but no logs exist | it reads the local S3; only the runner writes job logs, and it needs AWS |
 | Running Ansible on a server (`ansible/run-task`, the two runner images) | only in AWS | an SQS consumer starting Fargate tasks that use STS and SSM |
-
-In a real browser (headless Chrome, 2026-10-30): `/dev/login` signs in, and the dashboard, projects, project and AWS account pages render real data from the local database. The diagram editor opens only after the organization has a linked AWS account. That is A's own rule, and linking a fake account locally is enough (the account page, or the smoke test's stack-URL and role-ARN calls). With one linked, the canvas renders with the 5 resources in the palette and Save, Deploy and Destroy buttons. Dropping nodes on the canvas, naming them, saving and reloading all work (checked 2026-11-04 with scripted drag events; both nodes persisted). Deploy fails at its AWS call.
 
 Anything marked "only in AWS" stops at its first call to ECS or SQS, after its database, auth and S3 steps have run. Testing those paths needs an AWS account (or an SQS and ECS emulator, which this devserver does not include).
 
@@ -69,13 +68,13 @@ The Lambda reads templates through the local S3, so it gets the repo's real file
 
 The files land in `backend/devserver/.state/s3/clutter-devserver-local/<org>/<project>/<diagram>/terraform/`, as `main.tf` and `outputs.tf`. A diagram with no nodes gets `main.tf` only.
 
-List them with `npm run generated`, and validate one with `npm run generated -- <diagram-id>`. The first validate downloads Terraform's AWS provider (about 680 MB) and retries if the download drops. Validation runs on a scratch copy, never in the repo tree, and deletes the copy afterwards. It runs no plan and no apply. Terraform gets a clean environment and an empty home, so no AWS credentials reach it. `terraform init` is the one step that uses the network: the first run downloads the AWS and random providers from `registry.terraform.io` into `.state/terraform-plugins`, and later runs reuse them.
+Read them in the editor with **Preview Terraform**. List them with `npm run generated`, and validate one with `npm run generated -- <diagram-id>`. The first validate downloads Terraform's AWS provider (about 680 MB) and retries if the download drops. Validation runs on a scratch copy, never in the repo tree, and deletes the copy afterwards. It runs no plan and no apply. Terraform gets a clean environment and an empty home, so no AWS credentials reach it. `terraform init` is the one step that uses the network: the first run downloads the AWS and random providers from `registry.terraform.io` into `.state/terraform-plugins`, and later runs reuse them.
 
-`npm run generated` lists what is on disk. Deleting a diagram does not delete its files, the same as in production, so a deleted diagram stays in the list until `stop.sh --wipe`.
+`npm run generated` lists what is on disk. Deleting a diagram does not delete its files, the same as in production, so a deleted diagram stays in the list until `npm run stop -- --wipe`.
 
 ## How sign-in works locally
 
-Real Google sign-in works here while the capstone team's Google client still exists: the log-in Lambda runs unchanged, and it accepts the token because `GOOGLE_CLIENT_ID` is unset (an open defect in A). To work with no Google at all, use `/dev/login`. It creates a local user, `dev@clutter.localhost`. It signs a token with the same claims and algorithm as the log-in Lambda, using a secret that `dev.sh` generates. The real authorizer accepts that token.
+Real Google sign-in works here while the capstone team's Google client still exists: the log-in Lambda runs unchanged, and it accepts the token because `GOOGLE_CLIENT_ID` is unset (an open defect in A). Each Google account is a separate local user, which is how to test two users. `/dev/login` is for automated tests and as a fallback; people use `/login`. It creates a local user, `dev@clutter.localhost`. It signs a token with the same claims and algorithm as the log-in Lambda, using a secret that `dev.sh` generates. The real authorizer accepts that token.
 
 The frontend reads its API token from `localStorage` on its own origin, and the gateway on port 8787 cannot write it. So the gateway also runs a front door on `127.0.0.1:3000`. The front door serves `/dev/login` and passes every other request to the Next dev server on port 3100. `/dev/login` sets the `clutter_token` cookie and the `google_data` localStorage entry, just as a real log-in does, then opens `/dashboard`.
 

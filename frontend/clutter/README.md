@@ -8,9 +8,9 @@ Setup for the whole repo is in the root `README.md`. This page covers the fronte
 
 Use npm. The Dockerfile runs `npm ci`, and `pnpm-lock.yaml` is stale.
 
-| Variant | Command | Result on 2026-10-30 |
+| Variant | Command | Result on 2026-11-04 |
 | --- | --- | --- |
-| With the local backend (the normal way) | `npm run dev` at the repo root, then open <http://localhost:3000/dev/login> | works; checked in a headless browser |
+| With the local backend (the normal way) | `npm run dev` at the repo root, then open <http://localhost:3000/login> | works; checked in a headless browser |
 | Production build with the local backend | `backend/devserver/dev.sh --backend-only`, then `NEXT_PUBLIC_API_ENDPOINT=http://localhost:8787 npm --prefix frontend/clutter run build`, copy `.next/static` and `public` into `.next/standalone`, then in `frontend/clutter/.next/standalone` run `PORT=3100 HOSTNAME=127.0.0.1 node server.js` | works; checked in a headless browser |
 | Alone, no backend | `NEXT_PUBLIC_API_ENDPOINT=http://localhost:9999 npm --prefix frontend/clutter run dev` | `/` and `/login` render; everything else redirects to `/login` |
 | Docker image | `docker build -f frontend/Dockerfile.frontend frontend` | the Dockerfile hard-codes the capstone's dead API address, which Next bakes in at build time, so the image talks to nothing |
@@ -18,21 +18,19 @@ Use npm. The Dockerfile runs `npm ci`, and `pnpm-lock.yaml` is stale.
 
 `NEXT_PUBLIC_API_ENDPOINT` is the base URL of the Clutter API. Next reads it at build time, so a production build must be rebuilt to point somewhere else.
 
-Sign in locally either way, at <http://localhost:3000>: real Google sign-in on `/login` works (checked 2026-11-04), or the devserver's `/dev/login` signs you in as a local dev user with no Google at all. Google sign-in depends on a client id that is hard-coded and belongs to the capstone team's Google project, so it can stop working if they delete it; `/dev/login` does not. Each person who signs in becomes a separate user, which is how to test two users locally.
-
 ## Check it
 
 ```bash
 npx --prefix frontend/clutter tsc --noEmit -p frontend/clutter     # 0 errors
-npm --prefix frontend/clutter run lint                             # 0 errors, 13 warnings (10 unused variables or imports, 3 React hook dependency warnings; not fixed, A changes only at the seams)
+npm --prefix frontend/clutter run lint                             # 0 errors, 13 warnings (10 unused variables or imports, 3 React hook dependency warnings; not fixed, ADR-006 limits changes to A)
 NEXT_PUBLIC_API_ENDPOINT=http://localhost:9999 npm --prefix frontend/clutter run build   # 16 routes
 ```
 
-There are no frontend tests. Vitest, Testing Library and Playwright are installed but unused.
+One Vitest test file exists (`src/lib/features/diagram/types.test.ts`), with no `test` script, so CI does not run it. Testing Library and Playwright are installed but unused.
 
 ## What was checked in a browser
 
-With the devserver and a headless Chrome on 2026-10-30:
+With the devserver and a headless Chrome, 2026-11-04:
 
 | Page | Result |
 | --- | --- |
@@ -40,9 +38,9 @@ With the devserver and a headless Chrome on 2026-10-30:
 | `/dashboard` | renders projects, diagram and member counts, the project list and recent activity from the local database |
 | `/projects`, `/projects/[projectId]/diagrams` | render the real project and its diagrams |
 | `/settings/organization/aws-account` | renders |
-| `/projects/[projectId]/diagram/[diagramId]` (the canvas) | shows "AWS account required" until the organization has a linked account (run `npm run link-account` locally); then renders the palette with 5 resources and Save, Deploy and Destroy |
+| `/projects/[projectId]/diagram/[diagramId]` (the canvas) | shows "AWS account required" until the organization has a linked account (locally, press **Link fake account** on that popup); then renders the palette with 5 resources and Save, Deploy and Destroy |
 | Dropping nodes, naming them in the config panel, saving, reloading | works; both nodes persist (checked 2026-11-04 with scripted drag events) |
-| Saving generates Terraform | works; the files validate (`npm run generated -- <diagram-id>`) |
+| Saving generates Terraform, and Preview Terraform reads it | works; the panel text equals the file on disk, with download. The button is disabled while there are unsaved changes |
 | Deploy, Destroy, Ansible jobs | fail at their ECS or SQS call, as expected locally |
 
 ## Where things are
@@ -50,7 +48,7 @@ With the devserver and a headless Chrome on 2026-10-30:
 - `src/app/`: routes, in four groups.
   - `(auth)`: `login`, `register` (posts to a dead hard-coded host and is not reachable through the route guard) and `onboarding/create-org` (the first organization after sign-in).
   - `(dashboard)`: `dashboard`, `projects`, `projects/new`, and per project `diagrams`, `settings` (rename, delete) and `workspaces` (a placeholder).
-  - `(diagram)`: the canvas at `projects/[projectId]/diagram/[diagramId]/`. Its `_components/` hold `DiagramEditor`, `Palette` (from `GET /resources`), `TopNav`, `AwsAccountRequiredModal`, `nodes/AwsServiceNode`, `nodes/ConfigPanel` and the `logs/` panel.
+  - `(diagram)`: the canvas at `projects/[projectId]/diagram/[diagramId]/`. Its `_components/` hold `DiagramEditor`, `Palette` (from `GET /resources`), `TopNav`, `TerraformPreview` (reads `GET /terraform-engine/files`), `AwsAccountRequiredModal`, `nodes/AwsServiceNode`, `nodes/ConfigPanel` and the `logs/` panel.
   - `(settings)`: `settings/organization/aws-account` (the account link), `manage` (members; a mock) and `create-org` (a stub).
 - `src/lib/features/<feature>/`: one folder per backend area, each with `api.ts`, `types.ts`, `keys.ts`, `hooks.ts` and sometimes `uiStore.ts`. Features: `user` (sign-in, token), `organization`, `projects`, `diagram` (CRUD, save, deploy), `resources`, `logs`, `runs` (Ansible jobs), `codeUpload`, `members` (a mock). Follow this shape for a new feature.
 - `src/lib/stores/loginStore.ts`: unused. It holds a dead hard-coded login URL and the Google client id; nothing imports it.
@@ -68,7 +66,7 @@ With the devserver and a headless Chrome on 2026-10-30:
 
 ## Known gaps
 
-Member management is a mock, `settings/organization/create-org` and the workspaces page are stubs, `/register` is dead, Ansible polling never stops on success (`SUCCESS` vs the database's `COMPLETED`), the editor uses the user's first organization rather than the project's, and no deploy sends a region. The full list is in `.claude/findings/NOW.md`.
+They are listed in `.claude/findings/NOW.md`.
 
 ## Adding UI components
 

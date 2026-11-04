@@ -508,6 +508,71 @@ module "terraform-engine-create-lambda" {
   }
 }
 
+# A run deletes a generated file only when it has no content, and only
+# outputs.tf can be empty. Nothing else in the folder may be deleted, above all
+# the runner's state beside it.
+resource "aws_iam_role_policy" "terraform_engine_create_delete_outputs" {
+  name = "terraform-engine-create-delete-outputs-policy"
+  role = module.terraform-engine-create-lambda.role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "s3:DeleteObject"
+      Resource = "arn:aws:s3:::${module.s3.clutter_bucket_name}/*/terraform/outputs.tf"
+    }]
+  })
+}
+
+module "terraform-engine-files-lambda" {
+  source        = "./modules/templates/lambda"
+  function_name = "terraform-engine-files"
+  actions = [
+    "logs:CreateLogGroup",
+    "logs:CreateLogStream",
+    "logs:PutLogEvents"
+  ]
+  resources = [
+    "arn:aws:logs:*:*:log-group:/aws/lambda/terraform-engine-files:*"
+  ]
+  zip_dir_slice = "terraform-engine/files"
+  # One database query and up to a few S3 reads, on a cold start.
+  timeout = 10
+  environment_variables = {
+    S3_BUCKET_NAME         = module.s3.clutter_bucket_name
+    PSQL_CONNECTION_STRING = var.psql_connection_string
+  }
+}
+
+# The folder also holds the runner's state and deploy logs, so reads stop at the
+# generated files and the status. The state file's name does not end in .tf.
+# ListBucket stays on the bucket: without it S3 answers a missing key with 403,
+# not 404, and the route could not tell a file deleted mid-read from a failure.
+resource "aws_iam_role_policy" "terraform_engine_files_read" {
+  name = "terraform-engine-files-read-policy"
+  role = module.terraform-engine-files-lambda.role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = "arn:aws:s3:::${module.s3.clutter_bucket_name}"
+      },
+      {
+        Effect = "Allow"
+        Action = "s3:GetObject"
+        Resource = [
+          "arn:aws:s3:::${module.s3.clutter_bucket_name}/*/terraform/*.tf",
+          "arn:aws:s3:::${module.s3.clutter_bucket_name}/*/terraform/status.json"
+        ]
+      }
+    ]
+  })
+}
+
 # ==================================
 # Deployment logs Lambda Functions
 # ==================================
@@ -975,6 +1040,21 @@ module "terraform-engine-api-cors-compliance" {
   rest_api_id  = module.clutter-api-gateway.rest_api_id
   resource_id  = module.terraform-engine-api-path.resource_id
   http_methods = ["POST", "GET"]
+}
+
+# Generated Terraform files
+module "terraform-engine-files-api-path" {
+  source      = "./modules/templates/api-path"
+  rest_api_id = module.clutter-api-gateway.rest_api_id
+  parent_id   = module.terraform-engine-api-path.resource_id
+  path_part   = "files"
+}
+
+module "terraform-engine-files-api-cors-compliance" {
+  source       = "./modules/templates/api-path-cors-compliance"
+  rest_api_id  = module.clutter-api-gateway.rest_api_id
+  resource_id  = module.terraform-engine-files-api-path.resource_id
+  http_methods = ["GET"]
 }
 
 # Terraform logs
@@ -1480,6 +1560,19 @@ module "terraform-command-runner-api-integration" {
   path              = module.terraform-command-runner-api-path.path
   request_validator_id = module.clutter-api-gateway.body_validator_id
   model_name           = module.terraform-command-runner-model.model_name
+  jwt_authorizer_id = module.clutter-api-gateway.jwt_authorizer_id
+}
+
+module "terraform-engine-files-api-integration" {
+  source            = "./modules/templates/api-lambda-integration"
+  rest_api_id       = module.clutter-api-gateway.rest_api_id
+  resource_id       = module.terraform-engine-files-api-path.resource_id
+  http_method       = "GET"
+  invoke_arn        = module.terraform-engine-files-lambda.invoke_arn
+  function_name     = module.terraform-engine-files-lambda.function_name
+  path_part         = module.terraform-engine-files-api-path.path_part
+  execution_arn     = module.clutter-api-gateway.execution_arn
+  path              = module.terraform-engine-files-api-path.path
   jwt_authorizer_id = module.clutter-api-gateway.jwt_authorizer_id
 }
 
