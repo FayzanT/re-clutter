@@ -1,0 +1,11 @@
+# Where this environment keeps its Terraform state (docs/architecture/environments.md).
+# Copy to dev.backend.hcl or prod.backend.hcl and pass it at init:
+#   terraform -chdir=backend/infra init -backend-config=dev.backend.hcl
+# It takes effect once backend.tf stops naming the capstone's bucket (a change to A, not made yet).
+# The bucket and lock table come from backend/tfstate-infra, applied once per AWS account.
+
+bucket         = "tfstate-us-west-2-REPLACE"
+key            = "clutter/infra/terraform.tfstate"
+region         = "us-west-2"
+dynamodb_table = "tflock"
+encrypt        = true

@@ -2,13 +2,13 @@
 # Links a fake AWS account to the dev user's organizations, so the diagram
 # editor unlocks locally (A opens it only for an organization with a linked
 # account). Only Postgres is written; no AWS call is made. Development only.
-# Usage: link-fake-account.sh   (with run.sh already running)
+# Usage: link-fake-account.sh   (with npm run dev already running)
 set -euo pipefail
 trap 'echo "link-fake-account.sh: a call to the devserver failed (line $LINENO)" >&2' ERR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 command -v python3 >/dev/null || { echo "link-fake-account.sh: python3 is required" >&2; exit 1; }
-curl -fs --max-time 2 "http://${API_ADDR}/dev/healthz" >/dev/null || { echo "link-fake-account.sh: the devserver is not running; start it with run.sh" >&2; exit 1; }
+curl -fs --max-time 2 "http://${API_ADDR}/dev/healthz" >/dev/null || { echo "link-fake-account.sh: the devserver is not running; start it with npm run dev" >&2; exit 1; }
 
 api="http://${API_ADDR}"
 token="$(curl -fs "${api}/dev/login?format=json" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("token") or d["data"]["token"])')"

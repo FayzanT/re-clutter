@@ -10,7 +10,7 @@ This page gets you from a fresh clone to a working setup, and shows where everyt
 
 | | |
 | --- | --- |
-| **System A** (Clutter as built, AWS only) | Complete and tested by the capstone team. Its AWS deployment has been torn down. It runs locally through `backend/devserver`, except the parts that need AWS (generate, deploy, logs, Ansible). |
+| **System A** (Clutter as built, AWS only) | Complete and tested by the capstone team. Its AWS deployment has been torn down. It runs locally through `backend/devserver`, except the parts that need AWS (deploy and running Ansible). |
 | **System B** (the adapter layer) | Designed, not built. Phase 0 (security fixes A and B share) comes first. |
 | **Local checks** | Go build, frontend type-check, lint and build, Terraform validate and the database schema all pass. Two Go test packages fail (known). |
 | **Open defects** | Several security defects in A, some critical. Listed in `.claude/findings/NOW.md`. Read that before you build on any A code path. |
@@ -60,6 +60,7 @@ docs/
   architecture/
     system-a-as-built.md       A: what exists today
     system-b-adapter-layer.md  B: what we are building, and in what order
+    environments.md            local vs dev vs prod: what differs and what each needs
     system-b-team-plan/        the team's own B plan: figures, PDF and the written explanation
   decisions.md      every decision and why (ADR-001 onward; ADR means architecture decision record)
   research/
@@ -75,19 +76,47 @@ There are two kinds of Terraform here. `backend/infra` deploys Clutter itself. T
 
 ## Set up
 
-### 1. Install
+### 1. Install the tools
+
+`npm` cannot install Go, and `go` cannot install Node. Each language needs its own installer first. After that, the repo installs its own packages (`npm install` for the frontend; `npm run dev` downloads Go modules and the Postgres image).
 
 | Tool | Version | Needed for |
 | --- | --- | --- |
 | macOS (tested) or Linux; Windows only through WSL (untested) | | |
-| Git and GitHub CLI (`gh`) | any recent | everything |
-| Go | 1.25 or newer | the backend |
-| Node.js with npm | 22 or newer | the frontend (use npm; `pnpm-lock.yaml` is stale) |
-| Terraform | 1.x | checking the infrastructure code |
-| Docker (running) | any recent | the local database |
+| Git and GitHub CLI (`gh`) | any recent | clone, branches, pull requests |
+| Go | 1.25 or newer (`backend/api/go.mod`) | the backend. Homebrew's `go` is currently 1.27, which is fine |
+| Node.js with npm | 22 or newer (`.nvmrc`; CI uses 22; Next.js 16's floor is 20.9) | the frontend. Use npm; `pnpm-lock.yaml` is stale |
+| Terraform | 1.x | checking the infrastructure code, not a local run |
+| Docker Desktop (running) | any recent | the local database. `brew install docker` is only the CLI and is not enough |
 | curl, openssl, python3 | macOS has them | the local run scripts |
 | AWS CLI | v2 | only for deploying, which nobody does from a laptop yet |
-| Claude Code, and `jq` | optional | the AI setup in `.claude/` (its hooks need `jq`: `brew install jq`) |
+| Claude Code, and `jq` | optional | the AI setup in `.claude/` (its hooks need `jq`) |
+
+**macOS**, with [Homebrew](https://brew.sh). If `brew` is missing, install it from that page, then:
+
+```bash
+xcode-select --install                         # Apple's Git and compilers; skip if already installed
+brew install git gh go node jq
+brew install hashicorp/tap/terraform           # Hashicorp's formula; Homebrew core no longer ships terraform
+brew install --cask docker-desktop             # then open Docker.app and wait until it says it is running
+```
+
+`brew install node` puts `node` and `npm` on your PATH. That is not the same as the project's JavaScript packages.
+
+**Linux.** Install the same tools from the vendor pages, not from an old distro package of Go or Node: [Go](https://go.dev/doc/install), [Node 22 LTS](https://nodejs.org/), [Docker Engine](https://docs.docker.com/engine/install/), [Terraform](https://developer.hashicorp.com/terraform/install), [GitHub CLI](https://cli.github.com/). Then start Docker (`sudo systemctl start docker`, or your distro's equivalent).
+
+**Check** (open a new terminal after Homebrew so PATH updates):
+
+```bash
+go version          # go1.25 or newer
+node -v             # v22 or newer
+npm -v
+docker info         # must succeed; if it cannot talk to the daemon, open Docker Desktop and wait
+terraform version   # optional until you check backend/infra
+gh --version
+```
+
+Nothing in the repo is installed yet. That is step 2.
 
 ### 2. Clone
 
@@ -97,8 +126,10 @@ Our working repo is a fork. The client's original is `upstream`; never push to i
 git clone https://github.com/FayzanT/re-clutter
 cd re-clutter
 git remote add upstream https://github.com/Alberta2514640/clutter
-npm --prefix frontend/clutter ci
+npm install
 ```
+
+`npm install` at the repo root runs `npm ci` for the frontend, which reads `frontend/clutter/package-lock.json` and fills `frontend/clutter/node_modules` at exact versions. It does not install Node itself. The backend has no install step: Go downloads its modules, pinned by each `go.sum`, on the first `npm run dev` (or the first `go build` in step 3); you do not run `go get` by hand.
 
 The clone's `origin` is our fork; `upstream` is the client's repo, for reading only.
 
@@ -121,70 +152,37 @@ The two failing test packages are known: `terraform-engine/create` needs live S3
 
 ### 4. Run the app locally
 
-The first run takes a minute or two while it builds the 33 Lambdas. Start the database and backend (`run.sh` starts them in the background and returns):
+Open Docker Desktop first, then:
 
 ```bash
-backend/devserver/run.sh                     # Postgres, then A's real Lambdas behind a local API Gateway
+npm run dev
 ```
 
-Then the frontend, which keeps running in its terminal. It uses port 3100 because the devserver's front door holds 3000:
-
-```bash
-NEXT_PUBLIC_API_ENDPOINT=http://localhost:8787 npm --prefix frontend/clutter run dev -- --hostname 127.0.0.1 --port 3100
-```
+That is the whole backend and frontend. It checks your tools, starts Postgres in Docker, builds and starts A's real Lambdas behind a local API Gateway, and runs the frontend in this terminal. The first run takes a minute or two. Ctrl+C stops everything and keeps your data.
 
 Then:
 
-1. Open <http://localhost:3000/dev/login>. It signs you in as a local dev user. (Port 3000 is the devserver's front door; it passes pages through to the frontend on 3100.)
-2. The first time, the database is empty. Create an organization at <http://localhost:3000/onboarding/create-org>, then a project from the dashboard.
-3. The diagram editor stays locked until the organization has a linked AWS account. Link a fake one (it only writes to the local database):
+1. Open <http://localhost:3000/dev/login> to sign in as a local dev user, or <http://localhost:3000/login> to use Google.
+2. The first time, sign-in takes you to create an organization. Then create a project and a diagram from the dashboard.
+3. The diagram editor stays locked until the organization has a linked AWS account. In a second terminal, link a fake one (it only writes to the local database): `npm run link-account`
+4. Open a diagram, drag resources on, name them and press Save. Saving generates real Terraform. List it with `npm run generated`, and validate one with `npm run generated -- <diagram-id>`. Deploy fails at its AWS call; that is expected.
 
-   ```bash
-   backend/devserver/link-fake-account.sh
-   ```
+Frontend edits reload by themselves. After editing Go code, press Ctrl+C and run `npm run dev` again.
 
-4. Open a diagram and use the canvas. Deploy will fail at its AWS call; that is expected.
+| Command | Does |
+| --- | --- |
+| `npm run dev` | starts everything; Ctrl+C stops it and keeps your data |
+| `npm run link-account` | links a fake AWS account, which unlocks the diagram editor |
+| `npm run generated` | lists generated Terraform; add `-- <diagram-id>` to validate one |
+| `npm run smoke` | calls all 31 routes and prints what passed (with `npm run dev` running) |
+| `npm run stop` | stops a backend left running |
+| `npm run stop -- --wipe` | also deletes the local database, to start clean |
 
-Other commands:
-
-```bash
-backend/devserver/smoke.sh                   # calls all 31 routes and prints what passed
-backend/devserver/stop.sh                    # stops everything; add --wipe to delete the local database
-```
-
-Organizations, projects, diagrams, the canvas and the resource palette work locally. Generating Terraform, deploying, logs and Ansible only work in AWS. The full table is in `backend/devserver/README.md`.
-
-Other ways to run it (a production build of the frontend, the Docker image, `docker-compose.yml`) and whether each works are in `frontend/clutter/README.md`. There is no npm or pnpm command for the backend: the Go code runs as Lambdas, locally through `backend/devserver`.
-
-### 5. Optional: look at the UI without the backend
-
-Stop the devserver first (`backend/devserver/stop.sh`); both use port 3000.
-
-```bash
-NEXT_PUBLIC_API_ENDPOINT=http://localhost:9999 npm --prefix frontend/clutter run dev
-```
-
-Open <http://localhost:3000>. The home page and `/login` render. You cannot sign in this way; use step 4.
-
-### 6. Optional: load the database by hand
-
-`run.sh` does this for you. To do it by hand:
-
-```bash
-docker run -d --rm --name clutter-pg -e POSTGRES_PASSWORD=local -e POSTGRES_DB=clutter postgres:17-alpine
-until docker exec clutter-pg pg_isready -U postgres -d clutter; do sleep 1; done
-docker exec clutter-pg psql -U postgres -d clutter -c "create role anon; create role authenticated; create role service_role;"
-docker exec -i clutter-pg psql -U postgres -d clutter < backend/storage-sql/application-tables.sql
-docker exec -i clutter-pg psql -U postgres -d clutter < backend/storage-sql/seed-resources.sql
-docker exec clutter-pg psql -U postgres -d clutter -c "\dt"
-docker stop clutter-pg
-```
-
-You should see 11 tables. The roles exist because the schema was written for Supabase.
+A has no backend server of its own, so this runs stand-ins for its AWS parts. `docs/architecture/system-a-as-built.md` § How A runs has the table of what is real and what stands in. What works locally and what does not is in `backend/devserver/README.md`.
 
 ## What only works in AWS
 
-The Go code was built to run as AWS Lambdas; `backend/devserver` runs it locally, but anything that calls S3, ECS or SQS stops there. The capstone deployment is gone, and its AWS account is not ours. Running Clutter fully, including deploys, needs our own AWS account, a Postgres or Supabase database, a Google sign-in client, and a set of secrets. No extra tools are needed. The nine steps, and what must be fixed first, are in `docs/architecture/system-a-as-built.md` § Deploying to AWS.
+Deploying and running Ansible need real AWS. The capstone deployment is gone, and its account is not ours. What dev and prod need is in `docs/architecture/environments.md`, and the steps are in `docs/architecture/system-a-as-built.md` § Deploying to AWS.
 
 ### Do not run
 
@@ -210,7 +208,7 @@ Then pick a task from `NOW.md` § Next. Tell the team which one you are taking, 
 - **Taking a task.** The tasks are the tables in `.claude/findings/NOW.md` § Next. Put your name in a task's Owner cell in your branch's first commit and open a draft pull request at once, so two people never take the same task. The rules for editing `NOW.md` without merge conflicts are at the top of that section.
 - **Before you open a pull request:**
   1. The checks in step 3 pass (the same ones run in GitHub on every pull request: `.github/workflows/checks.yml`).
-  2. If you touched `backend/`, `backend/devserver/run.sh` then `smoke.sh` still shows 0 fail.
+  2. If you touched `backend/`, `npm run smoke` (with `npm run dev` running) still shows 0 fail.
   3. Docs whose facts you changed are updated (`docs/README.md` says which file owns which fact).
   4. A decision you made is in `docs/decisions.md`.
 - **Decisions.** An ADR starts as "proposed" and becomes "accepted" when its pull request is approved by the team (and the client, for scope or hosting). Write it before the change it decides.
@@ -242,7 +240,8 @@ The `.claude/` folder sets up Claude Code for this repo. You do not need it, but
 | What do we know about PatriCloud or TierHive? | `docs/research/patricloud/`, `docs/research/tierhive/` |
 | How do I add an API route or a Lambda? | `backend/README.md` § Adding a Lambda or a route |
 | How do I add a canvas resource? | `.claude/skills/add-cloud-resource/SKILL.md` |
-| What works locally and what only in AWS? Why does `run.sh` fail? | `backend/devserver/README.md` |
+| What works locally and what only in AWS? Why does `npm run dev` fail? | `backend/devserver/README.md` |
+| What differs between local, dev and prod? What do we need to connect AWS, Google and Supabase? | `docs/architecture/environments.md` |
 | Which doc owns which fact? | `docs/README.md` |
 | What did the previous capstone team deliver? | `docs/old-capstone/final-report.pdf` |
 

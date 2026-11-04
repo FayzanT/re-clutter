@@ -3,9 +3,9 @@
 //
 // Verdicts:
 //
-//	PASS       the route did its job against the local Postgres
-//	NEEDS-AWS  the route got past its database and auth steps and stopped at
-//	           its first AWS call, which the devserver refuses (expected)
+//	PASS       the route did its job against the local Postgres and local S3
+//	NEEDS-AWS  the route got past its database, auth and S3 steps and stopped
+//	           at an AWS call the devserver refuses (ECS, SQS; expected)
 //	EXPECTED   a refusal that is correct offline, named in the reason
 //	FAIL       anything else
 package main
@@ -22,12 +22,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/Alberta2514640/clutter/backend/devserver/internal/devauth"
+	"github.com/Alberta2514640/clutter/backend/devserver/internal/gateway"
 	"github.com/Alberta2514640/clutter/backend/devserver/internal/routes"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -48,12 +50,20 @@ type row struct {
 	reason  string
 }
 
+// check is one assertion outside the 31 route rows.
+type check struct {
+	name string
+	ok   bool
+	note string
+}
+
 type runner struct {
 	api    string
 	token  string
 	client *http.Client
 	rows   []row
 	hit    map[string]bool
+	checks []check
 }
 
 type resp struct {
@@ -233,10 +243,11 @@ func randSuffix() string {
 
 func main() {
 	api := flag.String("api", "http://127.0.0.1:8787", "gateway base URL")
+	s3Dir := flag.String("s3-dir", "", "the local S3 store on disk (.state/s3)")
 	flag.Parse()
 	conn := os.Getenv("PSQL_CONNECTION_STRING")
-	if conn == "" {
-		fmt.Fprintln(os.Stderr, "smoke: PSQL_CONNECTION_STRING is not set (run it through smoke.sh)")
+	if conn == "" || *s3Dir == "" {
+		fmt.Fprintln(os.Stderr, "smoke: PSQL_CONNECTION_STRING or -s3-dir is not set (run it through smoke.sh)")
 		os.Exit(2)
 	}
 
@@ -344,6 +355,9 @@ func main() {
 	r.call("PUT", "/diagram", map[string]any{
 		"projectId": projID, "diagramId": diaID, "name": "Smoke Diagram", "data": layout,
 	}, expectOK, 0, "", nil)
+	// Nothing in this run has called /terraform-engine yet: only the save can
+	// have produced these files.
+	r.checkGenerated(filepath.Join(*s3Dir, gateway.LocalDataBucket, orgID, projID, diaID, "terraform"))
 	r.call("GET", "/diagram?projectId="+projID+"&diagramId="+diaID, nil, expectOK, 0, "", func(rs resp) string {
 		var env struct {
 			Data json.RawMessage `json:"data"`
@@ -361,26 +375,42 @@ func main() {
 				_ = json.Unmarshal(many[0], &one)
 			}
 		}
-		if len(one.Data.Nodes) != 2 || len(one.Data.Edges) != 1 {
+		if len(one.Data.Nodes) != 5 || len(one.Data.Edges) != 3 {
 			return fmt.Sprintf("saved layout not read back: %d nodes, %d edges", len(one.Data.Nodes), len(one.Data.Edges))
 		}
 		return ""
 	})
 
-	// Lambda code upload (presigned PUT URL).
-	r.call("POST", "/terraform-engine/code-upload/presigned-url", map[string]string{
+	// Lambda code upload: the presigned URL, then the browser's PUT to it.
+	upload := r.call("POST", "/terraform-engine/code-upload/presigned-url", map[string]string{
 		"org_id": orgID, "project_id": projID, "diagram_id": diaID, "lambda_resource_name": "smoke_fn", "runtime": "python3.13",
-	}, expectAWS, 0, "presigning is local; the URL points at the devserver's no-AWS endpoint", nil)
+	}, expectOK, 0, "", nil)
+	uploadURL := str(upload.json, "upload_url")
+	r.checkBrowserUpload(uploadURL, str(upload.json, "s3_key"), filepath.Join(*s3Dir, gateway.LocalDataBucket))
+	s3Endpoint := ""
+	if u, err := url.Parse(uploadURL); err == nil {
+		s3Endpoint = u.Scheme + "://" + u.Host + "/" + gateway.LocalDataBucket + "/"
+	}
+
+	// Deploy logs are written by the runner, which needs AWS: put one in place.
+	logKey := orgID + "/" + projID + "/" + diaID + "/terraform/logs/smoke001/command.log"
+	if rs := r.s3Put(s3Endpoint+logKey, "smoke deploy log\n"); rs.status != http.StatusOK {
+		fatal(r, "seed the deploy log: "+summary(rs))
+	}
 
 	// Deploy: the runner writes its log row, then calls ECS.
 	r.call("POST", "/terraform-command-runner", map[string]string{
 		"organizationId": orgID, "projectId": projID, "diagramId": diaID, "accountAccessRoleId": accountID, "command": "apply",
 	}, expectAWS, 0, "stops at ecs:RunTask after writing a RUNNING deploy-log row", nil)
 	r.call("GET", "/terraform-engine/logs/recent-activity?orgId="+orgID+"&diagramId="+diaID, nil, expectOK, 0, "", nil)
-	r.call("GET", "/terraform-engine/logs?orgId="+orgID+"&projId="+projID+"&diagramId="+diaID, nil, expectAWS, 0,
-		"stops at s3:ListObjectsV2 (deploy logs live in S3)", nil)
-	r.call("GET", "/terraform-engine/logs/url?orgId="+orgID+"&projId="+projID+"&diagramId="+diaID+"&deploymentId=smoke001&file=command.log", nil, expectAWS, 0,
-		"presigning is local; the URL points at the devserver's no-AWS endpoint", nil)
+	r.call("GET", "/terraform-engine/logs?orgId="+orgID+"&projId="+projID+"&diagramId="+diaID, nil, expectOK, 0, "", func(rs resp) string {
+		if !strings.Contains(string(rs.body), "smoke001") || !strings.Contains(string(rs.body), "command.log") {
+			return "the seeded deploy log is missing from the list: " + summary(rs)
+		}
+		return ""
+	})
+	logURL := r.call("GET", "/terraform-engine/logs/url?orgId="+orgID+"&projId="+projID+"&diagramId="+diaID+"&deploymentId=smoke001&file=command.log", nil, expectOK, 0, "", nil)
+	r.checkBrowserDownload(str(logURL.json, "data", "url"), "smoke deploy log\n")
 	r.call("GET", "/terraform-engine/logs/live?orgId="+orgID+"&projId="+projID+"&diagramId="+diaID+
 		"&taskArn="+url.QueryEscape("arn:aws:ecs:us-west-2:000000000000:task/clutter-devserver-local/0123456789abcdef0123456789abcdef"), nil, expectAWS, 0,
 		"stops at ecs:DescribeTasks", nil)
@@ -395,22 +425,35 @@ func main() {
 			"created_at": time.Now().UTC().Format(time.RFC3339), "data": layout,
 		},
 		"old_record": map[string]any{"id": diaID, "project_id": projID, "data": map[string]any{"nodes": []any{}, "edges": []any{}}},
-	}, expectAWS, 0, "stops loading templates from S3", nil)
+	}, expectOK, 0, "", func(rs resp) string {
+		if !strings.Contains(str(rs.json, "s3_path"), diaID) {
+			return "no s3_path for the diagram: " + summary(rs)
+		}
+		return ""
+	})
 	r.token = saveTok
 
-	// Ansible: playbook upload URL, job submit, then job reads.
+	// Ansible: playbook upload URL, the upload, job submit, then job reads.
 	pb := r.call("POST", "/ansible/playbooks/upload-url", map[string]string{
 		"file_name": "site.yml", "project_id": projID, "diagram_id": diaID,
-	}, expectAWS, 0, "presigning is local; writes the playbook row", nil)
+	}, expectOK, 0, "", nil)
 	playbookID := str(pb.json, "data", "playbook_id")
+	playbookKey := str(pb.json, "data", "playbook_s3_key")
+	if rs := r.s3Put(str(pb.json, "data", "upload_url"), "---\n- hosts: localhost\n  tasks: []\n"); rs.status != http.StatusOK {
+		fatal(r, "upload the playbook: "+summary(rs))
+	}
 	r.call("POST", "/ansible/jobs", map[string]any{
 		"account_access_role_id": accountID, "target_instance_ids": []string{"i-0123456789abcdef0"}, "playbook_id": playbookID,
-	}, expectAWS, 0, "stops at s3:HeadObject checking the playbook (SQS comes after)", nil)
+	}, expectAWS, 0, "the playbook checks pass in local S3; stops at sqs:SendMessage and marks the job FAILED", nil)
 
-	// submit-job cannot create a job offline, so insert one row like it would.
-	jobID, err := insertFixtureJob(conn, userID, orgID, projID, diaID)
+	// submit-job cannot queue a job offline, so insert a job with a log, as
+	// the runner would leave one.
+	jobID, jobLogKey, err := insertFixtureJob(conn, userID, orgID, projID, diaID)
 	if err != nil {
 		fatal(r, "insert fixture job: "+err.Error())
+	}
+	if rs := r.s3Put(s3Endpoint+jobLogKey, "smoke job log\n"); rs.status != http.StatusOK {
+		fatal(r, "seed the job log: "+summary(rs))
 	}
 	r.call("GET", "/ansible/jobs", nil, expectOK, 0, "", func(rs resp) string {
 		if !strings.Contains(string(rs.body), jobID) {
@@ -419,21 +462,130 @@ func main() {
 		return ""
 	})
 	r.call("GET", "/ansible/jobs/"+jobID, nil, expectOK, 0, "", nil)
-	r.call("GET", "/ansible/jobs/"+jobID+"/logs", nil, expectAWS, 0, "stops at s3:GetObject (job logs live in S3)", nil)
+	r.call("GET", "/ansible/jobs/"+jobID+"/logs", nil, expectOK, 0, "", func(rs resp) string {
+		if str(rs.json, "data", "log_content") != "smoke job log\n" {
+			return "the seeded job log did not come back: " + summary(rs)
+		}
+		return ""
+	})
 
 	// Clean up in reverse.
 	r.call("DELETE", "/organization/"+orgID+"/accounts/"+accountID, nil, expectOK, 0, "", nil)
 	r.call("DELETE", "/diagram?projectId="+projID+"&diagramId="+diaID, nil, expectOK, 0, "", nil)
 	r.call("DELETE", "/project?organizationId="+orgID+"&projectId="+projID, nil, expectOK, 0, "", nil)
 	r.call("DELETE", "/organization/"+orgID, nil, expectOK, 0, "", nil)
-	_ = deleteFixtureJob(conn, jobID)
+	if err := deleteFixtureJobs(conn, jobID, playbookKey); err != nil {
+		fatal(r, "delete fixture jobs: "+err.Error())
+	}
+	// The real platform keeps a deleted diagram's files too. Smoke leaves none.
+	if err := os.RemoveAll(filepath.Join(*s3Dir, gateway.LocalDataBucket, orgID)); err != nil {
+		fatal(r, "remove smoke files: "+err.Error())
+	}
 
-	gatewayChecks(r)
+	gatewayChecks(r, s3Endpoint)
 	report(r)
 }
 
-// reactFlowLayout builds the body the editor saves: two palette nodes with
-// the seeded defaults as variables, and one edge made by React Flow's addEdge.
+// s3Put uploads to the local S3 the way the frontend does.
+func (r *runner) s3Put(target, body string) resp {
+	req, err := http.NewRequest("PUT", target, strings.NewReader(body))
+	if err != nil {
+		return resp{body: []byte(err.Error())}
+	}
+	req.Header.Set("x-amz-server-side-encryption", "AES256")
+	res, err := r.client.Do(req)
+	if err != nil {
+		return resp{body: []byte(err.Error())}
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	return resp{status: res.StatusCode, body: b, header: res.Header}
+}
+
+// checkGenerated waits for the background generation after a save and checks
+// that both files exist with all five resource types in them.
+func (r *runner) checkGenerated(dir string) {
+	const name = "PUT /diagram generates main.tf and outputs.tf"
+	// Poll for the content, not the files: the diagram's create also generated
+	// a main.tf, and the writer may replace the two files in either order.
+	problem := ""
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		mainTF, err := os.ReadFile(filepath.Join(dir, "main.tf"))
+		if err != nil {
+			problem = err.Error()
+			continue
+		}
+		outputsTF, err := os.ReadFile(filepath.Join(dir, "outputs.tf"))
+		if err != nil {
+			problem = err.Error()
+			continue
+		}
+		problem = ""
+		for _, want := range []string{"aws_lambda_function", "aws_s3_bucket", "aws_dynamodb_table", "aws_api_gateway_rest_api", "aws_instance", "aws_iam_policy", "aws_lambda_permission"} {
+			if !strings.Contains(string(mainTF), want) {
+				problem = "main.tf has no " + want
+			}
+		}
+		if problem == "" && len(outputsTF) > 0 {
+			r.checks = append(r.checks, check{name, true, fmt.Sprintf("main.tf %d bytes, outputs.tf %d bytes, all five resource types", len(mainTF), len(outputsTF))})
+			return
+		}
+	}
+	r.checks = append(r.checks, check{name, false, problem})
+}
+
+// checkBrowserUpload does what the browser does with a presigned URL: a CORS
+// preflight, then the PUT, and checks the object reached the disk.
+func (r *runner) checkBrowserUpload(target, key, bucketDir string) {
+	const name, origin = "presigned PUT from a browser", "http://localhost:3000"
+	pre, err := http.NewRequest("OPTIONS", target, nil)
+	if err != nil {
+		r.checks = append(r.checks, check{name, false, err.Error()})
+		return
+	}
+	pre.Header.Set("Origin", origin)
+	pre.Header.Set("Access-Control-Request-Method", "PUT")
+	pre.Header.Set("Access-Control-Request-Headers", "content-type,x-amz-server-side-encryption")
+	res, err := r.client.Do(pre)
+	if err != nil {
+		r.checks = append(r.checks, check{name, false, err.Error()})
+		return
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 || res.Header.Get("Access-Control-Allow-Origin") != origin {
+		r.checks = append(r.checks, check{name, false, fmt.Sprintf("preflight %d, allow-origin %q", res.StatusCode, res.Header.Get("Access-Control-Allow-Origin"))})
+		return
+	}
+	if rs := r.s3Put(target, "smoke zip"); rs.status != http.StatusOK {
+		r.checks = append(r.checks, check{name, false, fmt.Sprintf("PUT %d", rs.status)})
+		return
+	}
+	got, err := os.ReadFile(filepath.Join(bucketDir, filepath.FromSlash(key)))
+	r.checks = append(r.checks, check{name, err == nil && string(got) == "smoke zip", "preflight 200, PUT 200, object on disk"})
+}
+
+// checkBrowserDownload fetches a presigned GET URL from a browser origin.
+func (r *runner) checkBrowserDownload(target, want string) {
+	const name, origin = "presigned GET from a browser", "http://localhost:3000"
+	req, err := http.NewRequest("GET", target, nil)
+	if err != nil {
+		r.checks = append(r.checks, check{name, false, err.Error()})
+		return
+	}
+	req.Header.Set("Origin", origin)
+	res, err := r.client.Do(req)
+	if err != nil {
+		r.checks = append(r.checks, check{name, false, err.Error()})
+		return
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	r.checks = append(r.checks, check{name, res.StatusCode == 200 && string(b) == want && res.Header.Get("Access-Control-Allow-Origin") == origin,
+		fmt.Sprintf("%d, %d bytes, allow-origin %q", res.StatusCode, len(b), res.Header.Get("Access-Control-Allow-Origin"))})
+}
+
+// reactFlowLayout builds the body the editor saves: all five palette nodes with
+// the seeded defaults as variables, and edges made by React Flow's addEdge.
 func reactFlowLayout(resources []map[string]any) map[string]any {
 	defaults := func(label string) map[string]any {
 		out := map[string]any{}
@@ -451,67 +603,71 @@ func reactFlowLayout(resources []map[string]any) map[string]any {
 		}
 		return out
 	}
-	lambdaVars := defaults("Lambda")
-	lambdaVars["resource_name"] = "smoke_fn"
-	s3Vars := defaults("S3")
-	s3Vars["resource_name"] = "smoke_bucket"
-	a, b := uuid.NewString(), uuid.NewString()
+	palette := []struct{ label, img, name string }{
+		{"Lambda", "/aws/lambda.png", "smoke_fn"},
+		{"S3", "/aws/s3.png", "smoke_bucket"},
+		{"DynamoDB", "/aws/dynamodb.png", "smoke_table"},
+		{"API Gateway", "/aws/apigateway.png", "smoke_api"},
+		{"EC2 Container", "/aws/ec2.png", "smoke_vm"},
+	}
+	nodes := make([]any, 0, len(palette))
+	ids := map[string]string{}
+	for i, p := range palette {
+		vars := defaults(p.label)
+		vars["resource_name"] = p.name
+		ids[p.label] = uuid.NewString()
+		nodes = append(nodes, map[string]any{
+			"id": ids[p.label], "type": "awsService", "position": map[string]any{"x": 120.5 + float64(i)*200, "y": 80},
+			"data":     map[string]any{"label": p.label, "img": p.img, "variables": vars},
+			"measured": map[string]any{"width": 160, "height": 72}, "selected": false, "dragging": false,
+		})
+	}
+	edge := func(from, to string) map[string]any {
+		a, b := ids[from], ids[to]
+		return map[string]any{"source": a, "sourceHandle": nil, "target": b, "targetHandle": nil, "id": "xy-edge__" + a + "-" + b}
+	}
 	return map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id": a, "type": "awsService", "position": map[string]any{"x": 120.5, "y": 80},
-				"data":     map[string]any{"label": "Lambda", "img": "/aws/lambda.png", "variables": lambdaVars},
-				"measured": map[string]any{"width": 160, "height": 72}, "selected": false, "dragging": false,
-			},
-			map[string]any{
-				"id": b, "type": "awsService", "position": map[string]any{"x": 420, "y": 96.25},
-				"data":     map[string]any{"label": "S3", "img": "/aws/s3.png", "variables": s3Vars},
-				"measured": map[string]any{"width": 160, "height": 72}, "selected": true, "dragging": false,
-			},
-		},
-		"edges": []any{
-			map[string]any{"source": a, "sourceHandle": nil, "target": b, "targetHandle": nil, "id": "xy-edge__" + a + "-" + b},
-		},
+		"nodes": nodes,
+		"edges": []any{edge("API Gateway", "Lambda"), edge("Lambda", "S3"), edge("Lambda", "DynamoDB")},
 	}
 }
 
-func insertFixtureJob(connString, userID, orgID, projID, diaID string) (string, error) {
+func insertFixtureJob(connString, userID, orgID, projID, diaID string) (id, logKey string, err error) {
 	ctx := context.Background()
 	c, err := pgx.Connect(ctx, connString)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer c.Close(ctx)
-	id := uuid.NewString()
+	id = uuid.NewString()
+	logKey = fmt.Sprintf("%s/%s/%s/playbooks/logs/%s.log", orgID, projID, diaID, id)
 	_, err = c.Exec(ctx, `
 		INSERT INTO jobs (id, job_type, status, created_by, target_instance_ids, playbook_s3_key, log_s3_key, error_message)
-		VALUES ($1, 'ansible', 'FAILED', $2, '["i-0123456789abcdef0"]'::jsonb, $3, $4, 'devserver smoke fixture: submit-job needs S3 and SQS')`,
+		VALUES ($1, 'ansible', 'FAILED', $2, '["i-0123456789abcdef0"]'::jsonb, $3, $4, 'devserver smoke fixture: submit-job needs SQS')`,
 		id, userID,
 		fmt.Sprintf("%s/%s/%s/playbooks/%s-site.yml", orgID, projID, diaID, uuid.NewString()),
-		fmt.Sprintf("%s/%s/%s/playbooks/logs/%s.log", orgID, projID, diaID, id),
+		logKey,
 	)
-	return id, err
+	return id, logKey, err
 }
 
-func deleteFixtureJob(connString, id string) error {
+// deleteFixtureJobs removes the fixture job and the job submit-job created for
+// the uploaded playbook.
+func deleteFixtureJobs(connString, id, playbookKey string) error {
 	ctx := context.Background()
 	c, err := pgx.Connect(ctx, connString)
 	if err != nil {
 		return err
 	}
 	defer c.Close(ctx)
-	_, err = c.Exec(ctx, `DELETE FROM jobs WHERE id = $1`, id)
+	_, err = c.Exec(ctx, `DELETE FROM jobs WHERE id = $1 OR playbook_s3_key = $2`, id, playbookKey)
 	return err
 }
 
-// gatewayChecks prints checks of the gateway itself, outside the 31 rows.
-func gatewayChecks(r *runner) {
-	type check struct {
-		name string
-		ok   bool
-		note string
-	}
-	var cs []check
+// gatewayChecks prints checks of the gateway itself, outside the 31 rows,
+// after the checks the route calls recorded along the way.
+func gatewayChecks(r *runner, s3Endpoint string) {
+	cs := r.checks
 
 	pre, _ := http.NewRequest("OPTIONS", r.api+"/organization", nil)
 	pre.Header.Set("Origin", "http://localhost:3000")
@@ -546,6 +702,19 @@ func gatewayChecks(r *runner) {
 
 	unknown := r.do("GET", "/no-such-route", nil, r.token)
 	cs = append(cs, check{"GET /no-such-route", unknown.status == 403, fmt.Sprintf("%d %s", unknown.status, summary(unknown))})
+
+	// The S3 store must not have opened the endpoint to anything else.
+	before, _ := r.awsCalls(1 << 30)
+	ecs, _ := http.NewRequest("POST", strings.TrimSuffix(s3Endpoint, gateway.LocalDataBucket+"/"), strings.NewReader("{}"))
+	ecs.Header.Set("X-Amz-Target", "AmazonEC2ContainerServiceV20141113.RunTask")
+	ecs.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	if res, err := r.client.Do(ecs); err != nil {
+		cs = append(cs, check{"ECS call to the AWS endpoint", false, err.Error()})
+	} else {
+		res.Body.Close()
+		_, refused := r.awsCalls(before)
+		cs = append(cs, check{"ECS call to the AWS endpoint", res.StatusCode == 403 && len(refused) == 1, fmt.Sprintf("%d, refused %v", res.StatusCode, refused)})
+	}
 
 	fmt.Println("Gateway checks (not counted in the 31 routes):")
 	w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)

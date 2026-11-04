@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Stops the gateway, any Lambda process it left behind, and Postgres.
-#   --wipe  also deletes the Postgres volume (the next run.sh reloads the schema)
+#   --wipe  also deletes the Postgres volume (the next dev.sh reloads the schema)
+#           and the local S3 files, which belong to the diagrams in it
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -35,8 +36,9 @@ else
   export CLUTTER_DEV_PG_PASSWORD=unused
 fi
 if ${wipe}; then
-  echo "Stopping Postgres and deleting its volume ..."
+  echo "Stopping Postgres and deleting its volume and the local S3 files ..."
   compose down -v
+  rm -rf "${STATE_DIR}/s3"
 else
   echo "Stopping Postgres (data kept; use --wipe to delete it) ..."
   compose down

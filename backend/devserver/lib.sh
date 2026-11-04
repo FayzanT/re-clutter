@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2034  # sourced: its variables are used by the scripts that source it
-# Shared settings for run.sh, stop.sh and smoke.sh. Sourced, not run.
+# Shared settings for dev.sh, stop.sh and smoke.sh. Sourced, not run.
 
 DEVSERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${DEVSERVER_DIR}/../.." && pwd)"

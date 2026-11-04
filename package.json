@@ -1,0 +1,16 @@
+{
+  "name": "clutter",
+  "private": true,
+  "description": "Entry points for the whole repo. The frontend's own packages are in frontend/clutter.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "postinstall": "npm --prefix frontend/clutter ci",
+    "dev": "backend/devserver/dev.sh",
+    "stop": "backend/devserver/stop.sh",
+    "smoke": "backend/devserver/smoke.sh",
+    "generated": "backend/devserver/generated.sh",
+    "link-account": "backend/devserver/link-fake-account.sh"
+  }
+}

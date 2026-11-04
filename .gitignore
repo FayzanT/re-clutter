@@ -11,3 +11,6 @@ backend/infra/.deployment-outputs
 .claude/findings/*
 !.claude/findings/README.md
 !.claude/findings/NOW.md
+
+# macOS folder metadata
+.DS_Store

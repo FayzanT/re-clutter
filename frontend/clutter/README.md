@@ -10,15 +10,15 @@ Use npm. The Dockerfile runs `npm ci`, and `pnpm-lock.yaml` is stale.
 
 | Variant | Command | Result on 2026-10-30 |
 | --- | --- | --- |
-| With the local backend (the normal way) | `backend/devserver/run.sh`, then `NEXT_PUBLIC_API_ENDPOINT=http://localhost:8787 npm --prefix frontend/clutter run dev -- --hostname 127.0.0.1 --port 3100`, then open <http://localhost:3000/dev/login> | works; checked in a headless browser |
-| Production build with the local backend | `NEXT_PUBLIC_API_ENDPOINT=http://localhost:8787 npm --prefix frontend/clutter run build`, copy `.next/static` and `public` into `.next/standalone`, then in `frontend/clutter/.next/standalone` run `PORT=3100 HOSTNAME=127.0.0.1 node server.js` | works; checked in a headless browser |
+| With the local backend (the normal way) | `npm run dev` at the repo root, then open <http://localhost:3000/dev/login> | works; checked in a headless browser |
+| Production build with the local backend | `backend/devserver/dev.sh --backend-only`, then `NEXT_PUBLIC_API_ENDPOINT=http://localhost:8787 npm --prefix frontend/clutter run build`, copy `.next/static` and `public` into `.next/standalone`, then in `frontend/clutter/.next/standalone` run `PORT=3100 HOSTNAME=127.0.0.1 node server.js` | works; checked in a headless browser |
 | Alone, no backend | `NEXT_PUBLIC_API_ENDPOINT=http://localhost:9999 npm --prefix frontend/clutter run dev` | `/` and `/login` render; everything else redirects to `/login` |
 | Docker image | `docker build -f frontend/Dockerfile.frontend frontend` | the Dockerfile hard-codes the capstone's dead API address, which Next bakes in at build time, so the image talks to nothing |
 | Root `docker-compose.yml` | `docker compose up` | does not work: it pulls the capstone's published image (`ghcr.io/alberta2514640/clutter-frontend`), which could not be pulled, and that image points at the dead API too |
 
 `NEXT_PUBLIC_API_ENDPOINT` is the base URL of the Clutter API. Next reads it at build time, so a production build must be rebuilt to point somewhere else.
 
-Real Google sign-in does not work locally: the Google client id is hard-coded and belongs to the capstone team's Google project. Locally you sign in through the devserver's `/dev/login`.
+Sign in locally either way, at <http://localhost:3000>: real Google sign-in on `/login` works (checked 2026-11-04), or the devserver's `/dev/login` signs you in as a local dev user with no Google at all. Google sign-in depends on a client id that is hard-coded and belongs to the capstone team's Google project, so it can stop working if they delete it; `/dev/login` does not. Each person who signs in becomes a separate user, which is how to test two users locally.
 
 ## Check it
 
@@ -40,9 +40,10 @@ With the devserver and a headless Chrome on 2026-10-30:
 | `/dashboard` | renders projects, diagram and member counts, the project list and recent activity from the local database |
 | `/projects`, `/projects/[projectId]/diagrams` | render the real project and its diagrams |
 | `/settings/organization/aws-account` | renders |
-| `/projects/[projectId]/diagram/[diagramId]` (the canvas) | shows "AWS account required" until the organization has a linked account (run `backend/devserver/link-fake-account.sh` locally); then renders the palette with 5 resources and Save, Deploy and Destroy |
-| Dragging a node and saving | not checked by script (an automated drag timed out); check by hand |
-| Deploy, Destroy, logs, code upload, Ansible | fail at their AWS call, as expected locally |
+| `/projects/[projectId]/diagram/[diagramId]` (the canvas) | shows "AWS account required" until the organization has a linked account (run `npm run link-account` locally); then renders the palette with 5 resources and Save, Deploy and Destroy |
+| Dropping nodes, naming them in the config panel, saving, reloading | works; both nodes persist (checked 2026-11-04 with scripted drag events) |
+| Saving generates Terraform | works; the files validate (`npm run generated -- <diagram-id>`) |
+| Deploy, Destroy, Ansible jobs | fail at their ECS or SQS call, as expected locally |
 
 ## Where things are
 

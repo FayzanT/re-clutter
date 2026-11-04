@@ -9,6 +9,26 @@ As it stands on 2026-10-30, from a read of the code and a local run of every rou
 - **Platform infrastructure** (`backend/infra`): Terraform for API Gateway, the Lambdas, S3, ECR, ECS Fargate and SQS, in Clutter's own AWS account, with remote state in S3 and a DynamoDB lock (`backend/tfstate-infra` bootstraps that).
 - **Runners** (`backend/infra/modules/fargate/ecr-scripts`): two container images run as Fargate tasks. `terraform-deployer` runs Terraform for a diagram; `ansible-runner` runs a playbook on the customer's EC2 instances.
 
+## How A runs: there is no backend server
+
+A has no server of its own, and it never did. The capstone team built it to run only in AWS: each route is a small function (a Lambda) that AWS starts on demand, and API Gateway gives those functions their URLs. There was nothing to start on a laptop, no `go run`, and no local mode. They developed against their AWS account.
+
+The app's code is the same everywhere. To run it on a laptop, we added stand-ins for the AWS parts around it, all in `backend/devserver`. It is dev tooling, not part of A: it never ships, and A's code does not know it exists.
+
+| In real AWS (System A) | Stand-in on your laptop (ours) |
+| --- | --- |
+| API Gateway gives the functions URLs | the gateway on port 8787 |
+| Lambda service runs the functions | the same Go code, run as local processes |
+| Lambda authorizer checks the token | the same authorizer code |
+| Google sign-in | Google sign-in, or `/dev/login` |
+| Supabase Postgres | Postgres in Docker |
+| S3 holds templates, generated files and logs | a local S3, on disk in `backend/devserver/.state/s3` |
+| Supabase webhook triggers generation on save | the gateway does it after each save |
+| Frontend on a server, built with the API address | `npm run dev` on port 3100, behind the front door on port 3000 |
+| AWS console, to read generated Terraform (A has no screen for it) | files on disk, and `npm run generated` |
+| Fargate deployer runs Terraform in the customer's account | nothing: Deploy fails locally |
+| SQS and Fargate runner for Ansible | nothing: jobs stop at SQS |
+
 ## What was delivered
 
 From the final report, checked against the code where noted.
@@ -37,6 +57,45 @@ The report makes claims the code does not support:
 | Generation runs when the user deploys (one passage) or on every save (another) | on a Supabase webhook configured outside the repo; neither the frontend nor the diagram handlers call it |
 | No CI | CI builds and pushes the frontend image |
 
+## What A can and cannot do
+
+Status: **proven** means we ran it locally (2026-11-04). **Unproven** means the code exists but needs AWS, so only the capstone team has run it, and their evidence is one Lambda and one playbook.
+
+| Ability | Status |
+| --- | --- |
+| Sign in with Google; a user can have many organizations and projects | proven |
+| Create, rename and delete organizations, projects and diagrams | proven |
+| Link an AWS account (CloudFormation link, then paste the role ARN) | proven locally as far as the database; the ARN is never checked |
+| Draw on the canvas: 5 resources, connect them, configure them, save, reload | proven |
+| Generate Terraform on save, with IAM from connections | proven; output passes `terraform validate` |
+| Deploy and destroy into the customer's AWS account | unproven |
+| Live deploy status | unproven |
+| Deploy logs saved and listed | listing proven, real logs unproven |
+| Upload Lambda code | upload link proven; Node uploads fail on a runtime mismatch |
+| Run an Ansible playbook on an EC2 instance | unproven; the instance id is pasted by hand |
+
+Resources and the options each offers:
+
+| Resource | Options | Creates |
+| --- | --- | --- |
+| Lambda | name, handler, timeout, runtime, architecture, memory (ignored, always 128) | function and its IAM role |
+| S3 | name, versioning, block public access | bucket and access block |
+| DynamoDB | name, billing mode, hash key and type, TTL | table (no sort key) |
+| API Gateway | name, description, stage, CORS, HTTP methods | REST API, methods, deployment and stage |
+| EC2 Container | name, instance type, key name | instance and an SSM role |
+
+Connections: the canvas refuses anything into API Gateway, anything out of S3 or DynamoDB, and a node to itself. Only three connections do anything: Lambda to DynamoDB, Lambda to S3 (read and write permissions) and API Gateway to Lambda (invoke). Any other allowed connection, such as Lambda to EC2, draws a line and generates nothing, with no warning.
+
+A cannot:
+
+- deploy anywhere but AWS, or to any region but `us-west-2`
+- create networking (VPCs, subnets, security groups), databases such as RDS, queues, load balancers, DNS, or any resource beyond the five
+- set Lambda environment variables or tags from the UI
+- preview a change (no plan step), estimate cost, import existing infrastructure, or detect drift
+- undo, autosave, or show diagram history (history is written, never shown)
+- invite members, set roles, or share a diagram; an organization has only its creator
+- be called by another program (no API keys or service accounts)
+
 ## Inventory
 
 From a read of the code on 2026-10-30.
@@ -52,7 +111,7 @@ From a read of the code on 2026-10-30.
 
 1. **Sign in.** Google ID token in, user upserted, Clutter issues an HS256 JWT (24 hours). A Lambda authorizer checks it on protected routes. The frontend's route guard only checks that a `clutter_token` cookie exists, not that it is valid; data calls still need a real JWT.
 2. **Link an AWS account.** Clutter builds a CloudFormation quick-create link for a role in the customer's account (with an external id), and the customer pastes back the role ARN. The ARN is stored, not verified.
-3. **Draw and generate.** `POST /terraform-engine` takes a Supabase database-webhook body. The webhook itself is configured in Supabase, outside this repo, and the frontend never calls the route; the diagram update handler does not call it either. So whether a save compiles depends on configuration this repo does not hold. The generator parses each node's label into a resource type, loads that type's `*.tf.tmpl` from S3, renders it with `text/template`, builds IAM from the diagram's edges, emits a fixed `provider "aws"` block, and writes the files to S3 under the org, project and diagram.
+3. **Draw and generate.** `POST /terraform-engine` takes a Supabase database-webhook body. The webhook itself is configured in Supabase, outside this repo, and the frontend never calls the route; the diagram update handler does not call it either. So whether a save compiles depends on configuration this repo does not hold. The generator parses each node's label into a resource type, loads that type's `*.tf.tmpl` from S3, renders it with `text/template`, builds IAM from the diagram's edges, emits a fixed `provider "aws"` block, and writes the files to S3 under the org, project and diagram, in a `terraform/` folder.
 4. **Deploy.** `terraform-command-runner` starts a Fargate task with the role ARN and external id. The deployer syncs the files from S3, assumes the customer role, runs init and apply or destroy, syncs local state back to S3 (no lock), and writes status to Postgres. Logs come from S3 and CloudWatch.
 5. **Configure.** A playbook is uploaded, a job is queued on SQS, a consumer starts the `ansible-runner` task, which assumes the customer role and runs the playbook through SSM Run Command.
 
@@ -95,7 +154,7 @@ The capstone deployment is gone. The API host baked into `frontend/Dockerfile.fr
 
 ### Running the whole stack (needs our own accounts)
 
-None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
+What differs per environment, and what each needs, is in `environments.md`; these steps run once per cloud environment. None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
 
 1. **An AWS account for the platform.** Bootstrap remote state with `backend/tfstate-infra`, then point `backend/infra/backend.tf` at the new bucket and lock table.
 2. **Postgres.** A Supabase project (or any Postgres with the `anon`, `authenticated` and `service_role` roles). Load `backend/storage-sql/application-tables.sql`, then `seed-resources.sql`. Turn on row-level security or turn off the Supabase Data API first.

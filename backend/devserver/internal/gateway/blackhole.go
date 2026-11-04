@@ -9,22 +9,28 @@ import (
 	"sync"
 )
 
-// NoAWS is the endpoint every Lambda's AWS SDK is pointed at. It answers
-// every call with a non-retryable access-denied error in the protocol the
-// caller speaks, and records which API was attempted, so a dev run shows
-// exactly where a route needs AWS without any request leaving the machine.
+// NoAWS is the endpoint every Lambda's AWS SDK is pointed at. S3 calls the
+// local store can serve go to it. Every other call gets a non-retryable
+// access-denied error in the protocol the caller speaks, and is recorded, so a
+// dev run shows exactly where a route needs AWS without any request leaving
+// the machine.
 type NoAWS struct {
 	logger *log.Logger
+	s3     *LocalS3
 	mu     sync.Mutex
 	calls  []string
 }
 
-// NewNoAWS returns an empty recorder.
-func NewNoAWS(logger *log.Logger) *NoAWS {
-	return &NoAWS{logger: logger}
+// NewNoAWS returns an empty recorder in front of the local S3 store.
+func NewNoAWS(logger *log.Logger, s3 *LocalS3) *NoAWS {
+	return &NoAWS{logger: logger, s3: s3}
 }
 
 func (n *NoAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if n.s3.handles(r) {
+		n.s3.ServeHTTP(w, r)
+		return
+	}
 	target := r.Header.Get("X-Amz-Target")
 	op := target
 	if op == "" {

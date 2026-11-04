@@ -7,12 +7,13 @@ Each kind of fact has one owner. Change a fact at its owner, in the same change 
 | How agents behave in this repo | `CLAUDE.md` (root and per folder) |
 | What each part of the Claude Code setup does | `.claude/README.md` |
 | Code rules | `.claude/skills/engineering-conventions/SKILL.md` |
-| What exists today (System A), what was delivered, and how to deploy it to AWS | `docs/architecture/system-a-as-built.md` |
+| What exists today (System A): how it runs, what stands in for AWS locally, what was delivered, what it can and cannot do, how to deploy it | `docs/architecture/system-a-as-built.md` |
 | Onboarding: what Clutter is, the setup sequence for a new person, what not to run | root `README.md` |
 | Running A locally; what works locally and what only works in AWS | `backend/devserver/README.md` |
 | Backend layout, checks and their results, A's Go and shell lint, adding a Lambda | `backend/README.md` |
 | Frontend layout, run variants, checks and their results, browser results | `frontend/clutter/README.md` |
 | The generator's internals | `backend/api/terraform-engine/create/README.md` |
+| What is different between local, dev and prod, and what each needs | `docs/architecture/environments.md` |
 | What we are building (System B, the adapter layer), its names and its phases | `docs/architecture/system-b-adapter-layer.md` |
 | The team's A/B plan as the team wrote it (Options 1 to 3, B1 and B2, figures and explanation) | `docs/architecture/system-b-team-plan/` (source material; `system-b-adapter-layer.md` owns the plan from here on) |
 | The second research run on Patrii and Clutter (2026-10-26) | `docs/research/patricloud/2026-10-26-second-research-run/` (source material, folded into the docs above) |
