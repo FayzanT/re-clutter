@@ -13,7 +13,17 @@ import type {
   DiagramNode,
   RunTerraformResult,
   TerraformCommandInput,
+  TerraformPreview,
 } from "./types";
+
+export const useTerraformPreview = (token?: string | null) => useMutation<
+  TerraformPreview, Error, { projectId: string; diagramId: string }
+>({
+  mutationFn: ({ projectId, diagramId }) => {
+    if (!token) throw new Error("Sign in before previewing Terraform.");
+    return diagramApi.previewTerraform(token, projectId, diagramId);
+  },
+});
 
 export const useDiagrams = (token?: string | null, projectId?: string | null) => {
   return useQuery({

@@ -6,9 +6,14 @@ import type {
   RunTerraformResponseEnvelope,
   RunTerraformResult,
   UpdateDiagramInput,
+  TerraformPreview,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_ENDPOINT;
+
+// The preview endpoint belongs to the local dev gateway and is never deployed.
+export const supportsLocalTerraformPreview = process.env.NODE_ENV === "development"
+  && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(API_BASE ?? "");
 
 async function apiFetch<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
   if (!API_BASE) throw new Error("API_ENDPOINT is not set");
@@ -47,6 +52,11 @@ function normalizeMany(payload: DiagramApiItem | DiagramApiItem[]): Diagram[] {
 }
 
 export const diagramApi = {
+  previewTerraform: async (token: string, projectId: string, diagramId: string): Promise<TerraformPreview> => {
+    const qs = new URLSearchParams({ projectId, diagramId });
+    const json = await apiFetch<ApiEnvelope<TerraformPreview>>(`/dev/terraform-preview?${qs}`, token);
+    return json.data;
+  },
   list: async (token: string, projectId: string): Promise<Diagram[]> => {
     const qs = new URLSearchParams({ projectId });
     const json = await apiFetch<ApiEnvelope<DiagramApiItem[] | DiagramApiItem>>(`/diagram?${qs.toString()}`, token, {

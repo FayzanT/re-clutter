@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type TopNavProps = {
@@ -16,6 +17,7 @@ type TopNavProps = {
   isSaving?: boolean;
   nameDisabled?: boolean;
   saveDisabledReason?: string | null;
+  previewControl?: ReactNode;
 };
 
 export default function TopNav({
@@ -31,6 +33,7 @@ export default function TopNav({
   isSaving,
   nameDisabled,
   saveDisabledReason,
+  previewControl,
 }: TopNavProps) {
   const canSave = dirty && !isSaving && !saveDisabledReason;
   const [isEditing, setIsEditing] = useState(false);
@@ -160,6 +163,8 @@ export default function TopNav({
           >
             {isSaving ? "Saving…" : dirty ? "Save" : "Saved"}
           </Button>
+
+          {previewControl}
 
           <Button
             onClick={onDeploy}

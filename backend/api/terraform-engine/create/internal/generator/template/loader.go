@@ -46,6 +46,11 @@ func (l *TemplateLoader) Load(ctx context.Context, templatePath string) (*Templa
 	}
 	l.cacheMutex.RUnlock()
 
+	// A disk-only loader must never fall through to AWS on a cache miss.
+	if l.s3Client == nil {
+		return nil, fmt.Errorf("local template not found: %s", templatePath)
+	}
+
 	// Fetch from S3
 	result, err := l.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(l.bucketName),

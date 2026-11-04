@@ -87,6 +87,19 @@ s3://clutter-us-west-2-..../
 
 ## Local Testing
 
+For an offline preview, the devserver builds `cmd/preview` and calls it through
+its authenticated `/dev/terraform-preview` endpoint. The CLI reads a diagram
+layout from stdin, uses `generator.GenerateLocal` with the checked-in templates,
+and returns `main.tf` and `outputs.tf` as JSON. It does not load AWS configuration
+or create an S3 writer. The normal Lambda path above remains unchanged.
+Run its offline tests with:
+
+```bash
+go -C backend/api test ./terraform-engine/create/internal/generator/...
+```
+
+The editor workflow and limits are documented in `backend/devserver/README.md`.
+
 ### Run Tests
 
 **Full end-to-end test (generates + uploads to S3):**

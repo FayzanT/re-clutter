@@ -36,6 +36,10 @@ export type DiagramApiItem = {
 // Diagram and DiagramApiItem now share the same shape
 export type Diagram = DiagramApiItem;
 
+export type TerraformPreview = {
+  files: { "main.tf": string; "outputs.tf": string };
+};
+
 export type CreateDiagramInput = {
   projectId: string;
   name: string;

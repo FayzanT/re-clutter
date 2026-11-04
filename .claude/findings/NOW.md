@@ -15,6 +15,7 @@ Build System B, the adapter layer, beside System A (Clutter as built, AWS only),
 - The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009): every Postgres-only route works, and the smoke test of all 31 routes gives 27 pass, 6 need AWS, 1 expected, 0 fail. Generate, deploy, logs and Ansible need our own AWS account.
 - All 24 `upstream` branches are merged into `main` or stale, except `dev` (CI `actions/checkout` v6) and `database-seed` (an abandoned DynamoDB seed).
 - Waiting on: the team's answers to the questions below, and contacts at Patrii and TierHive.
+- Local Terraform preview is implemented on `feat/local-terraform-preview` (ADR-010): the saved diagram renders through disk templates with no AWS calls, and the development canvas displays and downloads both files. This does not change production compilation or deployment, or resolve the production generator's open defects.
 
 ## Next
 

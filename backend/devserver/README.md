@@ -17,6 +17,49 @@ backend/devserver/stop.sh     # add --wipe to delete the database
 
 You need Go, Docker (running), Node with npm (run `npm ci` in `frontend/clutter` once), openssl, curl, and python3 for `link-fake-account.sh`.
 
+## Preview Terraform without AWS
+
+Save a diagram with configured resource names, then click **Preview Terraform**
+in the editor toolbar. Choose `main.tf` or `outputs.tf` to inspect it, or download
+either file. The button is enabled only when the diagram is saved. It is shown
+by the development frontend when its API endpoint is `http://localhost:8787`
+or another loopback HTTP endpoint. It is absent from production builds.
+
+The dev-only `GET /dev/terraform-preview?projectId=...&diagramId=...` authenticates
+the caller with the real authorizer and checks the diagram's project and the
+caller's organization membership before reading the saved layout. It invokes
+the local generator built by `run.sh`, using the checked-in templates in
+`backend/infra/modules/s3/uploads`. It returns files to the browser without
+calling AWS, writing to S3, changing the diagram, or running Terraform. A fake
+linked account is sufficient to unlock A's editor; preview itself needs no role
+or account credentials.
+
+These files use the existing AWS templates and defaults, not a simulated cloud
+deployment. The AWS region variable and any Lambda code packages are separate
+deployment inputs. Unsupported resources, invalid names, duplicate names, empty
+diagrams and template failures produce an error instead of partial files.
+Resource names must start with a lowercase letter and contain at most 63
+lowercase letters, digits, underscores or hyphens. Restart with `stop.sh` and
+`run.sh` after pulling this feature so the preview CLI and route are available.
+
+Checked on 2026-11-04: offline tests render all five resources and cover invalid
+names, missing templates, empty layouts, and HCL escaping. A live saved S3
+diagram returned both files without a linked account; an unauthenticated request
+returned 401. The existing smoke test still reports 0 fail. Terraform validation
+and cloud deployment were not run.
+
+## Sample diagram for movement testing
+
+With the backend running, run `python3 backend/devserver/seed-diagram.py` from
+the repo root. It creates a new playground organization, a fake linked account,
+a project, and a diagram with five nodes and four connections. It prints the
+diagram URL after reading back and verifying the saved layout. Existing data is
+kept; each run creates a separate playground. No AWS calls are made.
+
+Sign in through `/dev/login`, open the printed URL, drag nodes, click Save, and
+refresh to check that their positions persist. You can also test pan, zoom,
+connections, and deletion. The frontend must be running on port 3100.
+
 ## If it does not start
 
 | You see | Do this |
@@ -45,6 +88,7 @@ Checked on 2026-10-30 with `smoke.sh` (all 31 routes, 34 calls: 27 pass, 6 need 
 | Presigned upload and download URLs (Lambda code, deploy logs, Ansible playbooks) | URLs are created, uploads go nowhere | presigning is local maths; the URL points at the local no-AWS endpoint |
 | Ansible job list and job details | work, on data already in the database | reading jobs is Postgres only |
 | Generate Terraform from a diagram (`POST /terraform-engine`) | only in AWS | loads templates from S3 and writes the generated files to S3 |
+| Preview and download Terraform (`GET /dev/terraform-preview`, devserver only) | works | authenticates and reads the saved diagram, then renders disk templates without AWS |
 | Deploy or destroy (`POST /terraform-command-runner`) | only in AWS | starts an ECS Fargate task; locally it leaves a `RUNNING` log row behind |
 | Live deploy status (`logs/live`) | only in AWS | ECS `DescribeTasks` |
 | Deploy logs (`logs`) | only in AWS | read from S3 |

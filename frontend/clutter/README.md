@@ -20,6 +20,12 @@ Use npm. The Dockerfile runs `npm ci`, and `pnpm-lock.yaml` is stale.
 
 Real Google sign-in does not work locally: the Google client id is hard-coded and belongs to the capstone team's Google project. Locally you sign in through the devserver's `/dev/login`.
 
+In development with a loopback HTTP API endpoint, the diagram toolbar also has
+**Preview Terraform**. Save the diagram first, then use it to inspect or download
+`main.tf` and `outputs.tf` without deploying. It shows generation progress and
+errors in a dialog. This button is absent from production builds. The local
+workflow and limitations are owned by `backend/devserver/README.md`.
+
 ## Check it
 
 ```bash

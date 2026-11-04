@@ -152,7 +152,7 @@ backend/devserver/smoke.sh                   # calls all 31 routes and prints wh
 backend/devserver/stop.sh                    # stops everything; add --wipe to delete the local database
 ```
 
-Organizations, projects, diagrams, the canvas and the resource palette work locally. Generating Terraform, deploying, logs and Ansible only work in AWS. The full table is in `backend/devserver/README.md`.
+Organizations, projects, diagrams, the canvas and the resource palette work locally. Save a configured diagram, then use **Preview Terraform** to inspect and download `main.tf` and `outputs.tf` without AWS. Production Terraform generation, deploying, logs and Ansible still need AWS. The full table and preview limits are in `backend/devserver/README.md`.
 
 Other ways to run it (a production build of the frontend, the Docker image, `docker-compose.yml`) and whether each works are in `frontend/clutter/README.md`. There is no npm or pnpm command for the backend: the Go code runs as Lambdas, locally through `backend/devserver`.
 

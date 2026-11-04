@@ -28,6 +28,9 @@ compose up -d --wait postgres >/dev/null
 echo "Building the gateway ..."
 go -C "${DEVSERVER_DIR}" build -o "${STATE_DIR}/gateway" ./cmd/gateway
 
+echo "Building the local Terraform preview generator ..."
+go -C "${REPO_DIR}/backend/api" build -o "${STATE_DIR}/terraform-preview" ./terraform-engine/create/cmd/preview
+
 echo "Building the Lambdas and starting the gateway (log: ${STATE_DIR}/gateway.log) ..."
 # A clean environment: no AWS_* or other variables from this shell reach the
 # gateway. Go needs PATH and HOME (for its caches).

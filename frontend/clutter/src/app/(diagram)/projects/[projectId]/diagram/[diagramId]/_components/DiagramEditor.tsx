@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import Palette from "./Palette";
 import TopNav from "./TopNav";
+import TerraformPreview from "./TerraformPreview";
+import { supportsLocalTerraformPreview } from "@/lib/features/diagram/api";
 import AwsServiceNode from "./nodes/AwsServiceNode";
 import ConfigPanel from "./nodes/ConfigPanel";
 
@@ -405,6 +407,13 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
                 dirty={dirty}
                 isSaving={isSaving}
                 saveDisabledReason={saveDisabledReason}
+                previewControl={supportsLocalTerraformPreview ? <TerraformPreview
+                  key={diagramId}
+                  token={token}
+                  projectId={projectId}
+                  diagramId={diagramId}
+                  disabled={dirty || isSaving || isLoading || isDeploying || isDestroying}
+                /> : undefined}
               />
             </Panel>
 
