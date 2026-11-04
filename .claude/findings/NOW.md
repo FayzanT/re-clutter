@@ -4,7 +4,7 @@ Updated 2026-10-30.
 
 ## Goal
 
-Build System B, the adapter layer, beside System A (Clutter as built, AWS only), so a diagram can deploy to other targets through connectors: General first, then PatriCloud and TierHive. Design: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-010. Environments: `docs/architecture/environments.md`.
+Build System B, the adapter layer, beside System A (Clutter as built, AWS only), so a diagram can deploy to other targets through connectors: General first, then PatriCloud and TierHive. Design: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-011. Environments: `docs/architecture/environments.md`.
 
 ## Where it stands
 

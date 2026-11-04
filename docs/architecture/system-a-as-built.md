@@ -13,7 +13,7 @@ As it stands on 2026-10-30, from a read of the code and a local run of every rou
 
 A has no server of its own, and it never did. The capstone team built it to run only in AWS: each route is a small function (a Lambda) that AWS starts on demand, and API Gateway gives those functions their URLs. There was nothing to start on a laptop, no `go run`, and no local mode. They developed against their AWS account.
 
-The app's code is the same everywhere. To run it on a laptop, we added stand-ins for the AWS parts around it, all in `backend/devserver`. It is dev tooling, not part of A: it never ships, and A's code does not know it exists.
+The app's code is the same everywhere. To run it on a laptop, we added stand-ins for the AWS parts around it, all in `backend/devserver`. That extension is **A2**: it is not part of A, it never ships to end users, and A's code does not know it exists.
 
 | In real AWS (System A) | Stand-in on your laptop (ours) |
 | --- | --- |

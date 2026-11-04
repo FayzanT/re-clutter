@@ -1,6 +1,6 @@
 # devserver
 
-Runs System A on one machine, without AWS, so the team can check what exists. Development only.
+This is **A2**: the extension that runs System A on one machine, without AWS, so the team can test what exists. It wraps A and does not change it. Development only.
 
 It runs the real, unchanged Lambdas from `backend/api`. Each one is built for this machine and started in aws-lambda-go's RPC mode. A gateway on `127.0.0.1:8787` turns HTTP requests into API Gateway REST proxy events, the same way the platform's API Gateway does. It runs the real authorizer on protected routes and answers CORS preflights. Postgres runs in Docker, loaded from `backend/storage-sql`. S3 is a small local store on disk, so saving a diagram generates real Terraform files.
 

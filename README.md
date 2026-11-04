@@ -25,8 +25,9 @@ The names everyone uses:
 
 | Name | Means |
 | --- | --- |
-| C | the whole Clutter app (A and B together) |
+| C | the whole Clutter app: A + A2 + B |
 | A | Clutter as built (AWS). We change it only at four named seams. |
+| A2 | the extension that makes A run and test without AWS (`backend/devserver`). It wraps A and leaves its code alone. For the team, not end users. |
 | B | the adapter layer we are building |
 | B1 | B as a service anyone can run, with entity connectors (built first) |
 | B2 | B run inside a company, with instance connectors (later) |

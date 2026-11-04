@@ -19,8 +19,9 @@ Clutter owns intent (what the customer wants); targets own resources. Callers ta
 
 | Name | Means |
 | --- | --- |
-| **C** | the whole Clutter app |
+| **C** | the whole Clutter app: A + A2 + B |
 | **A** | Clutter as it exists today: the AWS system, complete and tested (`system-a-as-built.md`) |
+| **A2** | the extension that makes A run and test without AWS (`backend/devserver`); it wraps A and does not change it (ADR-011) |
 | **B** | the adapter layer we are building |
 | **B1** | B shipped as a self-hosted, separate service people can run and use. Its connectors are entity connectors. |
 | **B2** | B run internally inside a company's own setup, not hosted by us. Its connectors are instance connectors. |
