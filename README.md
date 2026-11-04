@@ -176,6 +176,7 @@ Frontend edits reload by themselves. After editing Go code, press Ctrl+C and run
 | `npm run smoke` | calls all 32 routes and prints what passed (with `npm run dev` running) |
 | `npm run stop` | stops a backend left running |
 | `npm run stop -- --wipe` | also deletes the local database, to start clean |
+| `npm run deploy:plan -- dev` | for later: shows what a cloud deploy would change (`docs/architecture/environments.md`) |
 
 A has no backend server of its own, so this runs stand-ins for its AWS parts. `docs/architecture/system-a-as-built.md` § How A runs has the table of what is real and what stands in. What works locally and what does not is in `backend/devserver/README.md`.
 

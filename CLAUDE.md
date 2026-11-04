@@ -46,7 +46,7 @@ Run from the repo root with absolute paths; no `cd dir && cmd`. The commands liv
 | Does the devserver itself pass? | `go -C backend/devserver vet ./...` and `go -C backend/devserver test ./...` | Its route test fails if `backend/infra/main.tf` changes a route; update `internal/routes/routes.go` with it. |
 | Do our docs and scripts lint? | `npx -y markdownlint-cli2@0.18.1 "**/*.md"`, and `docker run --rm -v "$PWD":/mnt -w /mnt koalaman/shellcheck:v0.10.0 -S warning .claude/hooks/*.sh backend/devserver/*.sh` | Both must stay clean. |
 | Do the hooks still work? | `.claude/hooks/test-hooks.sh` | Run after changing any hook. |
-| How is it deployed to AWS? | `docs/architecture/environments.md` § Setting up a cloud environment | Not done yet; needs our own account and phase 0 first. |
+| How is it deployed to AWS? | `npm run deploy:plan -- dev`, `npm run deploy -- dev` (a person runs these); `docs/architecture/environments.md` § Setting up a cloud environment | Not run yet; needs our own account and phase 0 first. After changing `backend/infra/deploy.sh`, run `backend/infra/test-deploy.sh`. |
 
 CI: `.github/workflows/checks.yml` runs the Go, devserver, frontend, markdown, shellcheck and hook checks on every pull request and push to `main` (the two known-failing Go packages are excluded until phase 0 item 6). It also runs the smoke test. `.github/workflows/docker-image.yml` is A's image build, unchanged.
 

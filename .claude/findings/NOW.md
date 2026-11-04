@@ -8,7 +8,7 @@ First prove System A: test it locally through A2 (`backend/devserver`), fix what
 
 ## Where it stands
 
-- Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The harness, docs, design and devserver are in the client's `main` up to PR #96; later work is on `design/setup`.
+- Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The harness, docs, design, devserver and Terraform preview are in this branch.
 - The design now follows the team's plan (`docs/architecture/system-b-team-plan/`): Option 1, build B next to A and touch A only at named seams (ADR-006); B1 first, B2 later (ADR-007); the General connector first (ADR-008).
 - Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both connectors are blocked; General is not.
 - Every local check was run on 2026-10-30 (results in `backend/README.md` and `frontend/clutter/README.md`). Go build and vet, frontend types, lint and build, Terraform validate and the database schema pass. Go tests fail in the 2 known packages, and `terraform fmt` fails on 7 files.
@@ -22,11 +22,11 @@ First prove System A: test it locally through A2 (`backend/devserver`), fix what
 
 | Step | Work | Touches A? | Status |
 | --- | --- | --- | --- |
-| 0 | tag `capstone-original` (A as delivered) | no | done (local tag, not pushed) |
-| 1 | Terraform preview in the editor, as a product feature (ADR-012) | yes, an agreed exception | built and tested locally, not committed |
+| 0 | tag `capstone-original` (A as delivered) | no | done |
+| 1 | Terraform preview in the editor, as a product feature (ADR-012) | yes, an agreed exception | done, tested locally |
 | 2 | deploy from a laptop: A2 answers A's ECS call by running the deployer in Docker, against a real AWS account | no | open; needs an AWS sandbox to prove |
 | 3 | phase 0 security and bug fixes (below) | yes, as ADR-006 allows | open |
-| 4 | dev environment on AWS, Supabase and Google (`docs/architecture/environments.md`) | configuration only | open; needs accounts |
+| 4 | dev environment on AWS, Supabase and Google (`docs/architecture/environments.md`), with the hard-coded items removed and `npm run deploy` proven for the first time | configuration and small A changes | open; needs accounts |
 | 5 | System B, phase 1 | no | after step 4 |
 
 Done for A means one diagram with a Lambda and an S3 bucket deploys to dev, shows up in AWS, and destroys cleanly.

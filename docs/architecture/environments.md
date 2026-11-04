@@ -64,6 +64,8 @@ Dev and prod do not exist yet, so nothing has been tested there. Their columns s
 
 The capstone deployment is gone. The API host baked into `frontend/Dockerfile.frontend` (`7c1aawofvl.execute-api.us-west-2.amazonaws.com`) returns NXDOMAIN, and the platform state bucket in `backend/infra/backend.tf` belongs to the capstone AWS account, which we cannot reach.
 
+`npm run deploy:plan -- dev` shows what would change, `npm run deploy -- dev` applies it, and `npm run deploy:destroy -- dev` tears dev down (never prod). They stop on missing or example config, on the wrong AWS account, and for prod on anything but a clean `main`, and they ask before applying. They have not been run against real AWS yet; `backend/infra/test-deploy.sh` tests only their checks.
+
 These steps run once per cloud environment, after the changes in the next section. None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
 
 1. **An AWS account for the platform.** Bootstrap remote state with `backend/tfstate-infra`, then point `backend/infra/backend.tf` at the new bucket and lock table.
@@ -72,7 +74,7 @@ These steps run once per cloud environment, after the changes in the next sectio
 4. **Platform inputs** (`backend/infra/variables.tf`): `aws_region`, `jwt_secret`, `psql_connection_string`, `cloudformation_template_url`, `clutter_account_id`, `frontend_url`, `ansible_runner_image_tag`. The capstone team shared their tfvars file on Discord. It is not in the repo and must not be.
 5. **Build the Lambdas** with `backend/api/build.sh` (it lists all 34). `build_linux.sh` omits two.
 6. **Build and push the runner images** (`backend/infra/modules/fargate/ecr-scripts/*/build-and-push.sh`). The ECR repos are immutable, but the images are tagged `:latest`, so the second push fails.
-7. **`terraform apply` in `backend/infra`.** The Terraform defines no API Gateway deployment or stage, so the API must also be published by hand.
+7. **`npm run deploy -- dev`**, which also builds the Lambdas (step 5). The Terraform defines no API Gateway deployment or stage, so the API must also be published by hand.
 8. **The Supabase database webhook** that calls `POST /terraform-engine` when a diagram changes. It is configured in Supabase, not in this repo. Without it, saving a diagram never generates code.
 9. **The frontend** with `NEXT_PUBLIC_API_ENDPOINT` set to the new API stage URL.
 
