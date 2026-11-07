@@ -4,19 +4,32 @@ Updated 2026-10-30.
 
 ## Goal
 
-Build System B, the adapter layer, beside System A (Clutter as built, AWS only), so a diagram can deploy to other targets through connectors: General first, then PatriCloud and TierHive. Design: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-009.
+First prove System A: test it locally through A2 (`backend/devserver`), fix what is unsafe, then run it in a dev cloud. Then build System B, the adapter layer, beside it, so a diagram can deploy to other targets through connectors: General first, then PatriCloud and TierHive. C is A + A2 + B (ADR-011). Design: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-012. Environments: `docs/architecture/environments.md`.
 
 ## Where it stands
 
-- The harness, the docs, the design and the devserver are on `main` of `origin` (`FayzanT/re-clutter`, a fork of the client's `Alberta2514640/clutter`, added as remote `upstream`).
+- Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The harness, docs, design, devserver and Terraform preview are in this branch.
 - The design now follows the team's plan (`docs/architecture/system-b-team-plan/`): Option 1, build B next to A and touch A only at named seams (ADR-006); B1 first, B2 later (ADR-007); the General connector first (ADR-008).
 - Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both connectors are blocked; General is not.
 - Every local check was run on 2026-10-30 (results in `backend/README.md` and `frontend/clutter/README.md`). Go build and vet, frontend types, lint and build, Terraform validate and the database schema pass. Go tests fail in the 2 known packages, and `terraform fmt` fails on 7 files.
-- The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009): every Postgres-only route works, and the smoke test of all 31 routes gives 27 pass, 6 need AWS, 1 expected, 0 fail. Generate, deploy, logs and Ansible need our own AWS account.
+- The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. Smoke test of all 32 routes: 31 pass, 3 need AWS, 3 expected, 0 fail. Deploy and running Ansible need our own AWS account (`docs/architecture/environments.md`, ADR-010).
 - All 24 `upstream` branches are merged into `main` or stale, except `dev` (CI `actions/checkout` v6) and `database-seed` (an abandoned DynamoDB seed).
 - Waiting on: the team's answers to the questions below, and contacts at Patrii and TierHive.
 
 ## Next
+
+### The order
+
+| Step | Work | Touches A? | Status |
+| --- | --- | --- | --- |
+| 0 | tag `capstone-original` (A as delivered) | no | done |
+| 1 | Terraform preview in the editor, as a product feature (ADR-012) | yes, an agreed exception | done, tested locally |
+| 2 | deploy from a laptop: A2 answers A's ECS call by running the deployer in Docker, against a real AWS account | no | open; needs an AWS sandbox to prove |
+| 3 | phase 0 security and bug fixes (below) | yes, as ADR-006 allows | open |
+| 4 | dev environment on AWS, Supabase and Google (`docs/architecture/environments.md`), with the hard-coded items removed and `npm run deploy` proven for the first time | configuration and small A changes | open; needs accounts |
+| 5 | System B, phase 1 | no | after step 4 |
+
+Done for A means one diagram with a Lambda and an S3 bucket deploys to dev, shows up in AWS, and destroys cleanly.
 
 ### How the team uses this file
 
@@ -36,6 +49,9 @@ Do these before phase 1, in any order unless a row says otherwise. Items 1 to 6 
 | 4 | Set `GOOGLE_CLIENT_ID` on the log-in Lambda in `backend/infra/main.tf` and check `email_verified` in the handler | the devserver's route test passes with the new environment key; a handler test rejects a token with the wrong audience and an unverified email | free | open |
 | 5 | Ownership checks on every child id through one shared helper in `generic` (recent-activity, terraform-command-runner, code-upload, logs/live, ansible list-jobs) | a test per handler shows a member of organization X gets 403 or 404 for organization Y's project, diagram or run; the smoke test stays at 0 fail | free | open |
 | 6 | Go tests green offline (put the live-S3 tests behind a build tag, fix the nil-connection panic), and remove the package exclusion in `.github/workflows/checks.yml` | `go -C backend/api test ./...` exits 0 with no AWS credentials, and the checks workflow runs every package. **Good first task**: small, no security path, teaches the backend and its tests | free | open |
+| 6b | Update the frontend's packages: `npm audit` reports 21 issues (2 critical, 14 high), including Next.js itself, and `zod` and `sharp` directly. `sharp` needs a major version bump | `npm audit` shows no critical or high issue in a package the app ships; type-check, lint, build and a browser check still pass | free | open |
+| 6c | Generation bug: API Gateway with CORS off renders invalid Terraform (the stale `outputs.tf` bug is fixed) | `terraform validate` passes for API Gateway with CORS off | free | open |
+| 6d | `GetOutputs` hides template failures in all five generators, and `POST /terraform-engine` error bodies leak paths and SDK text | a failed output template fails the run; a test shows a generic error body | free | open |
 | 7 | Narrow the customer role (`client_side_terraform_deployer_role.yaml`) to the actions the templates use | the policy lists named actions, no `*` on `iam`, `s3`, `ec2` or `ssm`; confirmed by a deploy in AWS later | free | open |
 | 8 | Verify a role ARN with STS before storing it in `submit-role-arn` | a handler test with a stubbed STS client rejects an ARN it cannot assume; confirmed in AWS later | free | open |
 | 9 | A lock on customer Terraform state (an S3 backend with locking instead of the synced local file) | the deployer's generated backend block has locking; two parallel runs on one diagram are refused, confirmed in AWS later | free | open |
@@ -77,6 +93,8 @@ Found or confirmed by the 2026-10-30 code sweep (a reader lane; the first four r
 - Frontend: `/register` posts to a dead hard-coded host and is not reachable through the proxy; `settings/organization/create-org` and the workspaces page are stubs; the diagram editor uses the user's first organization, so deploy and upload break for users in more than one.
 - Dead code in the generator (`LambdaDefaults`, `S3Defaults`, `DynamoDBDefaults`, `LoadResourceTemplates`, `RenderContext`, `HasDataChanged`). Confirmed.
 - Found by running A locally (2026-10-30): `terraform-command-runner` writes a `RUNNING` deploy-log row before it starts the ECS task, so a failed start leaves a deploy that shows as running forever. `ansible/submit-job` reports every S3 error as 404 "playbook not found". `terraform-engine` returns 400 "completed with errors" when its templates cannot load, so a platform failure looks like a user error. The login page's 403 branch for expired tokens can never run in a browser, because API Gateway's own 403 has no CORS headers. `code-upload` puts `lambda_resource_name` into the S3 key unvalidated. Confirmed at run time: `POST /terraform-engine` runs with no token.
+- Found by generating Terraform locally (2026-11-04): API Gateway with CORS off renders invalid Terraform (`depends_on` names the `_options` resources outside the `{{if .EnableCORS}}` block), and the canvas can send that. The generator's response gives an `s3_path` without the `terraform/` folder. Real Google sign-in works locally only through the capstone's client id and the unset audience check.
+- Found building the Terraform preview (2026-11-04): `GetOutputs` in all five generators returns empty on a template failure, so a run reports success with outputs missing, and if every one fails `outputs.tf` is deleted (the fix changes the `ResourceGenerator` interface). The 400 and 500 bodies of `POST /terraform-engine` still carry paths and SDK text, on a route with no authorizer. The panel's "save to refresh" needs a change first, because Save is disabled on a clean diagram. Diagrams written through the API load as unsaved, so Preview stays disabled until Save. The status tests in `terraform-engine/create` pass but CI skips that package until phase 0 item 6.
 - Minor: the recent-activity Lambda's log permission points at another log group; the terraform branch of `ansible/run-task` is dead; `application-tables.sql` fails on a re-run (`CREATE TYPE`).
 
 Closed: the audit suspected AWS keys were committed in `ac90930`. That commit added `.vscode/.bashrc` and a `.gitignore` entry only; no AWS key pattern appears in the tree or any commit.

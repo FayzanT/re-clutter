@@ -2,7 +2,7 @@
 
 This Lambda function generates Terraform code from diagram data received via Supabase webhooks.
 
-> **Checked against the code on 2026-10-30.** The Supabase webhook that calls this route is configured in Supabase, not in this repo, and nothing in the repo calls the route. The route has no authorizer, so anyone who can reach it can trigger generation. Run locally through `backend/devserver`, it accepts the webhook body and then stops at its first S3 call (loading templates); generation cannot be tested without S3. Corrections to the capstone text below are marked "Now:".
+> **Checked against the code on 2026-11-04.** The Supabase webhook that calls this route is configured in Supabase, not in this repo, and nothing in the repo calls the route. The route has no authorizer, so anyone who can reach it can trigger generation. Locally, `backend/devserver` stands in for the webhook and S3, so saving a diagram runs this Lambda for real (`backend/devserver/README.md`). Corrections to the capstone text below are marked "Now:".
 
 ## Architecture Overview
 
@@ -69,9 +69,15 @@ s3://clutter-us-west-2-..../
 └── {org-id}/
     └── {project-id}/
         └── {diagram-id}/
-            ├── main.tf      (provider + resources + IAM)
-            └── outputs.tf   (resource outputs)
+            └── terraform/
+                ├── main.tf      (provider + resources + IAM)
+                ├── outputs.tf   (resource outputs; deleted when a diagram has none)
+                └── status.json  (whether the last run succeeded, read by the editor)
 ```
+
+Now: the `terraform/` folder is what the writer really uses; the `s3_path` in the Lambda's response omits it.
+
+Every run writes `status.json`. A failed run leaves the older `.tf` files in place and records the failure, so the editor can warn that they are out of date. Errors caused by the diagram keep their real message; infrastructure errors are stored as a fixed sentence, with the cause in the log. If an upload fails partway, the status says the files may be incomplete. A status that cannot be written is logged and does not fail the run. `GET /terraform-engine/files` (`backend/api/generic/terraformfiles`) reads all of this for the editor.
 
 ---
 

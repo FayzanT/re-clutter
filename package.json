@@ -1,0 +1,19 @@
+{
+  "name": "clutter",
+  "private": true,
+  "description": "Entry points for the whole repo. The frontend's own packages are in frontend/clutter.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "postinstall": "npm --prefix frontend/clutter ci",
+    "dev": "backend/devserver/dev.sh",
+    "stop": "backend/devserver/stop.sh",
+    "smoke": "backend/devserver/smoke.sh",
+    "deploy:plan": "backend/infra/deploy.sh plan",
+    "deploy": "backend/infra/deploy.sh apply",
+    "deploy:destroy": "backend/infra/deploy.sh destroy",
+    "generated": "backend/devserver/generated.sh",
+    "seed": "python3 backend/devserver/seed-diagram.py"
+  }
+}

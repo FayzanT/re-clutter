@@ -24,6 +24,7 @@ LAMBDA_DIRS=(
   "terraform-command-runner"
   "user-information/get"
   "terraform-engine/create"
+  "terraform-engine/files"
   "terraform-engine/logs/get"
   "terraform-engine/logs/url"
   "terraform-engine/logs/live"

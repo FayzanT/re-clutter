@@ -120,7 +120,7 @@ echo "Downloading Terraform from S3."
 aws s3 sync "s3://$S3_CLUTTER_NAME/$TERRAFORM_DIRECTORY" /app
 
 # Check to see if Terraform file exists
-if [ -z "$(ls -A /app)" ]; then
+if [ -z "$(ls -A /app/*.tf 2>/dev/null)" ]; then
   echo "ERROR: No Terraform files found in S3 path."
   false
 fi

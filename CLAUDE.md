@@ -6,7 +6,7 @@ The frames to hold before opening a file, the boundaries not to cross, and where
 
 A drag-and-drop canvas that turns an architecture diagram into Terraform (and Ansible), then runs it inside the customer's own cloud account. It began as a University of Calgary capstone (team 500-MM-3, client Alberta 2514640 Inc). The final report is in `docs/old-capstone/` (PDF, and the same text as markdown); it is history, not the current architecture (`docs/architecture/system-a-as-built.md` owns that).
 
-The team's names, used everywhere: **A** is Clutter as built (AWS only, complete, tested). **B** is the adapter layer we are building beside it: B API, a connector interface, and one **connector** per target (General, PatriCloud, TierHive). **B1** is B as a self-hosted service with entity connectors (built first); **B2** is B run inside a company with instance connectors (later). An **instance** is one company's configured setup of a connector. The design is `docs/architecture/system-b-adapter-layer.md`; the team's own figures are in `docs/architecture/system-b-team-plan/`; target research is in `docs/research/`.
+The team's names, used everywhere: **C** is the whole app, A + A2 + B. **A** is Clutter as built (AWS only, complete, tested). **A2** is the extension that makes A run and test without AWS (`backend/devserver`): it wraps A from outside and is for the team, not end users. Its one piece inside A is the local-only **Link fake account** button (ADR-011). **B** is the adapter layer we are building beside it: B API, a connector interface, and one **connector** per target (General, PatriCloud, TierHive). **B1** is B as a self-hosted service with entity connectors (built first); **B2** is B run inside a company with instance connectors (later). An **instance** is one company's configured setup of a connector. The design is `docs/architecture/system-b-adapter-layer.md`; the team's own figures are in `docs/architecture/system-b-team-plan/`; target research is in `docs/research/`.
 
 ## What you will get wrong about this repo
 
@@ -16,8 +16,8 @@ The team's names, used everywhere: **A** is Clutter as built (AWS only, complete
 - **"AWS" is not only in the templates.** It is in the core: the `provider "aws"` block the writer emits, IAM policy built from edges, the region list, the account-link flow (CloudFormation and role ARN), the runner scripts (STS and SSM), the DB columns, and the frontend's node component. Assume any file may hold an AWS assumption until you have read it.
 - **The final report overstates A.** It says every endpoint needs a JWT, Supabase row-level security isolates tenants, roles are least privilege, and a new resource needs only a new template. The code does none of these. Check the code before repeating a report claim.
 - **52 of A's Go files use CRLF line endings, stored that way in git.** With `core.autocrlf=input` (common on macOS), git rewrites a touched CRLF file to LF on commit, so a one-line edit becomes a whole-file diff. Check `git diff --stat` before committing an A file, and keep line endings as they are. The format hook skips files that were not formatted at HEAD for the same reason.
-- **This clone is a fork.** `origin` is `FayzanT/re-clutter` (our working repo). `upstream` is the client's `Alberta2514640/clutter`, which has 24 branches, all either merged into `main` or stale. Never push to `upstream`.
-- **Nothing in this repo triggers generation.** `POST /terraform-engine` expects a Supabase database-webhook body, and that webhook is configured in Supabase, not here. Neither the frontend nor the diagram handlers call it.
+- **Work happens in a fork, and merges into the client's repo.** `origin` is `FayzanT/re-clutter`, where branches live. `upstream` is the client's `Alberta2514640/clutter`, which receives finished work by pull request. Never push to `upstream` directly. Its 24 older branches are all merged into `main` or stale.
+- **Nothing in A triggers generation.** `POST /terraform-engine` expects a Supabase database-webhook body, and that webhook is configured in Supabase, not here. Neither the frontend nor the diagram handlers call it. Locally, `backend/devserver` stands in for the webhook.
 
 ## Boundaries, and what enforces them
 
@@ -40,15 +40,15 @@ Run from the repo root with absolute paths; no `cd dir && cmd`. The commands liv
 | --- | --- | --- |
 | Does the Go compile? | `go -C backend/api build ./...` and `go -C backend/api vet ./...` | Must stay green. |
 | Do the Go tests pass? | `go -C backend/api test ./...` | Two packages fail before any change (`backend/README.md` says which). Read the per-package lines; a red run is not a reason to skip the packages you touched. |
-| Does the frontend type-check, lint and build? | `npx --prefix frontend/clutter tsc --noEmit -p frontend/clutter`, `npm --prefix frontend/clutter run lint`, and the build with `NEXT_PUBLIC_API_ENDPOINT` set | Needs `npm ci` in `frontend/clutter` first; npm, never pnpm. No frontend tests exist. |
+| Does the frontend type-check, lint and build? | `npx --prefix frontend/clutter tsc --noEmit -p frontend/clutter`, `npm --prefix frontend/clutter run lint`, and the build with `NEXT_PUBLIC_API_ENDPOINT` set | Needs `npm ci` in `frontend/clutter` first; npm, never pnpm. |
 | Is the platform Terraform valid? | `terraform -chdir=backend/infra fmt -check -recursive`, then `validate` after `init -backend=false` in a scratch copy | The backend is the capstone team's AWS account: never `plan` or `apply` against it. |
-| Does A still run? | `backend/devserver/run.sh`, then `backend/devserver/smoke.sh`; stop with `backend/devserver/stop.sh` | Any change on a seam must keep the smoke test at 0 fail. |
+| Does A still run? | `backend/devserver/dev.sh --backend-only`, then `npm run smoke`; stop with `npm run stop` | Any change on a seam must keep the smoke test at 0 fail. |
 | Does the devserver itself pass? | `go -C backend/devserver vet ./...` and `go -C backend/devserver test ./...` | Its route test fails if `backend/infra/main.tf` changes a route; update `internal/routes/routes.go` with it. |
 | Do our docs and scripts lint? | `npx -y markdownlint-cli2@0.18.1 "**/*.md"`, and `docker run --rm -v "$PWD":/mnt -w /mnt koalaman/shellcheck:v0.10.0 -S warning .claude/hooks/*.sh backend/devserver/*.sh` | Both must stay clean. |
 | Do the hooks still work? | `.claude/hooks/test-hooks.sh` | Run after changing any hook. |
-| How is it deployed to AWS? | `docs/architecture/system-a-as-built.md` § Deploying to AWS | Not done yet; needs our own account and phase 0 first. |
+| How is it deployed to AWS? | `npm run deploy:plan -- dev`, `npm run deploy -- dev` (a person runs these); `docs/architecture/environments.md` § Setting up a cloud environment | Not run yet; needs our own account and phase 0 first. After changing `backend/infra/deploy.sh`, run `backend/infra/test-deploy.sh`. |
 
-CI: `.github/workflows/checks.yml` runs the Go, devserver, frontend, markdown, shellcheck and hook checks on every pull request (the two known-failing Go packages are excluded until phase 0 item 6). The smoke test needs Docker, so it is run locally before a pull request. `.github/workflows/docker-image.yml` is A's image build, unchanged.
+CI: `.github/workflows/checks.yml` runs the Go, devserver, frontend, markdown, shellcheck and hook checks on every pull request and push to `main` (the two known-failing Go packages are excluded until phase 0 item 6). It also runs the smoke test. `.github/workflows/docker-image.yml` is A's image build, unchanged.
 
 ## When you are uncertain
 

@@ -1,0 +1,10 @@
+# Where this environment keeps its Terraform state (docs/architecture/environments.md).
+# Copy to dev.backend.hcl or prod.backend.hcl. The deploy command passes it to terraform init:
+#   npm run deploy -- dev
+# The bucket and lock table come from backend/tfstate-infra, applied once per AWS account.
+
+bucket         = "tfstate-us-west-2-REPLACE"
+key            = "clutter/infra/terraform.tfstate"
+region         = "us-west-2"
+dynamodb_table = "tflock"
+encrypt        = true

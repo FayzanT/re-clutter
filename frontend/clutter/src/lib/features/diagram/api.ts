@@ -5,6 +5,7 @@ import type {
   DiagramApiItem,
   RunTerraformResponseEnvelope,
   RunTerraformResult,
+  TerraformFiles,
   UpdateDiagramInput,
 } from "./types";
 
@@ -95,6 +96,15 @@ export const diagramApi = {
   delete: async (token: string, projectId: string, diagramId: string): Promise<void> => {
     const qs = new URLSearchParams({ projectId, diagramId });
     await apiFetch<ApiEnvelope<unknown>>(`/diagram?${qs.toString()}`, token, { method: "DELETE" });
+  },
+
+  // GET /terraform-engine/files
+  terraformFiles: async (token: string, projectId: string, diagramId: string): Promise<TerraformFiles> => {
+    const qs = new URLSearchParams({ projectId, diagramId });
+    const json = await apiFetch<ApiEnvelope<TerraformFiles>>(`/terraform-engine/files?${qs.toString()}`, token, {
+      method: "GET",
+    });
+    return json.data;
   },
 
   // POST /terraform-command-runner

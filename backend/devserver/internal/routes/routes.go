@@ -63,6 +63,7 @@ var Lambdas = []Lambda{
 	{Name: "resources-get", Dir: "resources/get", TimeoutSeconds: 3, EnvKeys: []string{"PSQL_CONNECTION_STRING"}},
 	{Name: "terraform-engine-code-upload-presigned-url", Dir: "terraform-engine/code-upload", TimeoutSeconds: 3, EnvKeys: []string{"S3_BUCKET_NAME", "PSQL_CONNECTION_STRING"}},
 	{Name: "terraform-engine-create", Dir: "terraform-engine/create", TimeoutSeconds: 3, EnvKeys: []string{"S3_BUCKET_NAME", "TEMPLATE_BUCKET_NAME", "PSQL_CONNECTION_STRING"}},
+	{Name: "terraform-engine-files", Dir: "terraform-engine/files", TimeoutSeconds: 10, EnvKeys: []string{"S3_BUCKET_NAME", "PSQL_CONNECTION_STRING"}},
 	{Name: "terraform-engine-logs-get", Dir: "terraform-engine/logs/get", TimeoutSeconds: 3, EnvKeys: []string{"S3_BUCKET_NAME", "PSQL_CONNECTION_STRING"}},
 	{Name: "terraform-engine-logs-url", Dir: "terraform-engine/logs/url", TimeoutSeconds: 3, EnvKeys: []string{"S3_BUCKET_NAME", "PSQL_CONNECTION_STRING"}},
 	{Name: "terraform-engine-logs-live", Dir: "terraform-engine/logs/live", TimeoutSeconds: 3, EnvKeys: []string{"PSQL_CONNECTION_STRING", "ECS_CLUSTER_NAME", "TERRAFORM_DEPLOYER_LOG_GROUP", "TERRAFORM_DEPLOYER_LOG_STREAM_PREFIX", "TERRAFORM_DEPLOYER_CONTAINER_NAME"}},
@@ -77,7 +78,7 @@ var Lambdas = []Lambda{
 // SkippedLambdas are Lambdas in main.tf that have no HTTP route.
 var SkippedLambdas = []string{"ansible-run-task"}
 
-// Routes lists the 31 API Gateway integrations.
+// Routes lists the 32 API Gateway integrations.
 var Routes = []Route{
 	{Method: "POST", Path: "/log-in", Lambda: "log-in", Authorized: false},
 	{Method: "GET", Path: "/cloudformation-stack-url/{organizationId}", Lambda: "cloudformation-stack-url-generator", Authorized: true},
@@ -97,6 +98,7 @@ var Routes = []Route{
 	{Method: "PUT", Path: "/diagram", Lambda: "diagram-update", Authorized: true},
 	{Method: "DELETE", Path: "/diagram", Lambda: "diagram-delete", Authorized: true},
 	{Method: "POST", Path: "/terraform-command-runner", Lambda: "terraform-command-runner", Authorized: true},
+	{Method: "GET", Path: "/terraform-engine/files", Lambda: "terraform-engine-files", Authorized: true},
 	{Method: "GET", Path: "/terraform-engine/logs", Lambda: "terraform-engine-logs-get", Authorized: true},
 	{Method: "GET", Path: "/terraform-engine/logs/url", Lambda: "terraform-engine-logs-url", Authorized: true},
 	{Method: "GET", Path: "/terraform-engine/logs/live", Lambda: "terraform-engine-logs-live", Authorized: true},
@@ -128,6 +130,7 @@ var CORS = map[string][]string{
 	"/user-information":                           {"GET"},
 	"/resources":                                  {"GET"},
 	"/terraform-engine":                           {"POST", "GET"},
+	"/terraform-engine/files":                     {"GET"},
 	"/terraform-engine/logs":                      {"GET"},
 	"/terraform-engine/logs/url":                  {"GET"},
 	"/terraform-engine/logs/live":                 {"GET"},

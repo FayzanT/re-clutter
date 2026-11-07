@@ -1,5 +1,8 @@
 # All terraform state/lock file
 */terraform.tfvars
+*/*.tfvars
+*/*.backend.hcl
+*/*.tfplan
 */terraform.tfstate.backup
 */terraform.tfstate
 */.terraform.lock.hcl

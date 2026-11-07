@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"strings"
+
 	"github.com/Alberta2514640/clutter/backend/api/generic"
 )
 
@@ -52,12 +54,38 @@ type GeneratedTerraform struct {
 	OutputsTF   string
 }
 
+// ErrorTypeTemplate marks a GenerationError caused by Clutter's own templates,
+// not by the diagram. Its Message holds bucket paths and SDK errors.
+const ErrorTypeTemplate = "template_error"
+
+// templateFailureMessage is what the user reads in place of that Message.
+const templateFailureMessage = "A Terraform template could not be used. This is a problem on our side, not in your diagram. Save the diagram again to retry."
+
 // GenerationError provides detailed error information
 type GenerationError struct {
 	NodeID    string `json:"node_id"`
 	NodeLabel string `json:"node_label"`
-	ErrorType string `json:"error_type"` // "unknown_label", "missing_variable", "invalid_config"
+	ErrorType string `json:"error_type"` // "unknown_label", "missing_variable", "invalid_config", ErrorTypeTemplate
 	Message   string `json:"message"`
+}
+
+// SummarizeErrors turns a run's errors into the one message the user reads.
+func SummarizeErrors(errs []GenerationError) string {
+	seen := make(map[string]bool, len(errs))
+	lines := make([]string, 0, len(errs))
+	for _, e := range errs {
+		line := e.Message
+		if e.ErrorType == ErrorTypeTemplate {
+			line = templateFailureMessage
+		} else if e.NodeLabel != "" {
+			line = e.NodeLabel + ": " + e.Message
+		}
+		if !seen[line] {
+			seen[line] = true
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "; ")
 }
 
 // ResourceGenerator interface for each resource type

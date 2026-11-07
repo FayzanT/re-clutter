@@ -1,17 +1,24 @@
 "use client";
 
+import { isLocalDevApi } from "@/lib/features/organization/api";
 import { AlertTriangle } from "lucide-react";
 
 type AwsAccountRequiredModalProps = {
   open: boolean;
   onGoToSettings: () => void;
   onBack: () => void;
+  onLinkFakeAccount: () => void;
+  isLinkingFakeAccount: boolean;
+  linkFakeAccountFailed: boolean;
 };
 
 export default function AwsAccountRequiredModal({
   open,
   onGoToSettings,
   onBack,
+  onLinkFakeAccount,
+  isLinkingFakeAccount,
+  linkFakeAccountFailed,
 }: AwsAccountRequiredModalProps) {
   if (!open) return null;
 
@@ -41,7 +48,25 @@ export default function AwsAccountRequiredModal({
           to connect your AWS account.
         </div>
 
+        {/* NODE_ENV stays inline so a production build drops this block. */}
+        {process.env.NODE_ENV === "development" && isLocalDevApi && linkFakeAccountFailed && (
+          <p role="alert" className="mt-3 text-sm text-red-300">
+            Could not link a fake account. Check the gateway log.
+          </p>
+        )}
+
         <div className="mt-6 flex items-center justify-end gap-3">
+          {process.env.NODE_ENV === "development" && isLocalDevApi && (
+            <button
+              type="button"
+              onClick={onLinkFakeAccount}
+              disabled={isLinkingFakeAccount}
+              className="rounded-lg border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLinkingFakeAccount ? "Linking…" : "Link fake account"}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onBack}

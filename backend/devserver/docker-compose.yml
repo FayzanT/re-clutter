@@ -1,4 +1,4 @@
-# Local Postgres for the devserver. run.sh starts it; stop.sh stops it.
+# Local Postgres for the devserver. dev.sh starts it; stop.sh stops it.
 # On first start the entrypoint loads, in order: the Supabase roles, the
 # application tables and the resource seed, straight from backend/storage-sql.
 name: clutter-devserver
@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: clutter
       POSTGRES_DB: clutter
-      POSTGRES_PASSWORD: ${CLUTTER_DEV_PG_PASSWORD:?run backend/devserver/run.sh, which sets this}
+      POSTGRES_PASSWORD: ${CLUTTER_DEV_PG_PASSWORD:?run backend/devserver/dev.sh, which sets this}
       TZ: UTC
     ports:
       # Loopback only.

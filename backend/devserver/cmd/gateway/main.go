@@ -1,7 +1,8 @@
 // Command gateway runs System A's Lambdas locally behind an HTTP server that
 // behaves like the platform's API Gateway. It is a development tool only: it
 // binds to loopback, refuses a JWT secret it did not generate, and points
-// every AWS SDK call at a local endpoint that refuses it.
+// every AWS SDK call at a local endpoint that serves S3 from disk and refuses
+// everything else.
 package main
 
 import (
@@ -68,13 +69,19 @@ func run(logger *log.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// The endpoint that refuses every AWS call. It must exist before the
-	// Lambdas start, since their environment points at it.
+	// The endpoint every AWS call goes to. It must exist before the Lambdas
+	// start, since their environment points at it.
 	noAWSLn, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
-	noAWS := gateway.NewNoAWS(logger)
+	s3ModuleDir := filepath.Join(*apiDir, "..", "infra", "modules", "s3")
+	localS3, err := gateway.NewLocalS3(filepath.Join(*stateDir, "s3"), s3ModuleDir, logger)
+	if err != nil {
+		return err
+	}
+	defer localS3.Close()
+	noAWS := gateway.NewNoAWS(logger, localS3)
 	noAWSSrv := &http.Server{Handler: noAWS, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = noAWSSrv.Serve(noAWSLn) }()
 	defer noAWSSrv.Close()
@@ -112,13 +119,18 @@ func run(logger *log.Logger) error {
 	}
 
 	issuer := &devauth.Issuer{ConnString: cfg.PSQLConnString, Secret: []byte(cfg.JWTSecret), FrontendOrigin: frontOrigin}
-	apiHandler := gateway.NewServer(pool, logger, map[string]http.Handler{
+	devRoutes := map[string]http.Handler{
 		"/dev/login":     issuer.RedirectHandler(),
 		"/dev/aws-calls": noAWS.CallsHandler(),
 		"/dev/healthz": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("ok\n"))
 		}),
-	})
+	}
+	apiHandler := gateway.NewServer(pool, logger, devRoutes)
+	// This route calls back into the server, so it is added once the server exists.
+	devRoutes[gateway.LinkFakeAccountPath] = apiHandler.LinkFakeAccountHandler()
+	generation := gateway.NewGenerationHook(pool, cfg.PSQLConnString, logger)
+	apiHandler.Generation = generation
 	servers := []*http.Server{{Addr: *apiAddr, Handler: apiHandler, ReadHeaderTimeout: 10 * time.Second}}
 
 	if *frontAddr != "" {
@@ -127,7 +139,7 @@ func run(logger *log.Logger) error {
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(w, "The frontend dev server is not reachable at %s.\nStart it as run.sh printed, then reload.\n", *frontendUpstream)
+			fmt.Fprintf(w, "The frontend dev server is not reachable at %s.\nStart everything with npm run dev at the repo root, then reload.\n", *frontendUpstream)
 		}
 		front := http.NewServeMux()
 		front.Handle("/dev/login", issuer.BrowserHandler())
@@ -161,6 +173,7 @@ func run(logger *log.Logger) error {
 	for _, s := range servers {
 		_ = s.Shutdown(shutdownCtx)
 	}
+	generation.Wait()
 	return nil
 }
 

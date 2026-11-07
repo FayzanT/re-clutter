@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import Palette from "./Palette";
 import TopNav from "./TopNav";
+import TerraformPreview from "./TerraformPreview";
 import AwsServiceNode from "./nodes/AwsServiceNode";
 import ConfigPanel from "./nodes/ConfigPanel";
 
@@ -13,7 +14,7 @@ import { useDiagram, useRunTerraform, useUpdateDiagramData } from "@/lib/feature
 import type { DiagramEdge, DiagramNode } from "@/lib/features/diagram/types";
 import { useDiagramEditor, useDiagramEditorActions } from "@/lib/features/diagram/uiStore";
 import { useLiveLogsAccumulated } from "@/lib/features/logs/hooks";
-import { useOrganizationAccounts, useOrganizations } from "@/lib/features/organization/hooks";
+import { useLinkFakeAccount, useOrganizationAccounts, useOrganizations } from "@/lib/features/organization/hooks";
 import { useSupportedResources } from "@/lib/features/resources/hooks";
 import { useMe } from "@/lib/features/user/hooks";
 import { useRouter } from "next/navigation";
@@ -82,6 +83,7 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
   const connectedAwsAccount = orgAWS.data?.find((account) => account.status === "complete" && !!account.role_arn, ) ?? null;
   const awsId = connectedAwsAccount?.id ?? null;
   const isAwsBlocked = !orgAWS.isLoading && !!orgId && !awsId;
+  const linkFakeAccountM = useLinkFakeAccount(token);
 
   const { data: supportedResources } = useSupportedResources();
   const diagramQ = useDiagram(token, projectId, diagramId);
@@ -405,6 +407,16 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
                 dirty={dirty}
                 isSaving={isSaving}
                 saveDisabledReason={saveDisabledReason}
+                previewControl={
+                  <TerraformPreview
+                    key={diagramId}
+                    token={token}
+                    projectId={projectId}
+                    diagramId={diagramId}
+                    disabled={dirty || isSaving || isLoading}
+                    hasResources={nodes.length > 0}
+                  />
+                }
               />
             </Panel>
 
@@ -471,6 +483,11 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
             onGoToSettings={() =>
               router.push("/settings/organization/aws-account")
             }
+            onLinkFakeAccount={() => {
+              if (orgId) linkFakeAccountM.mutate(orgId);
+            }}
+            isLinkingFakeAccount={linkFakeAccountM.isPending}
+            linkFakeAccountFailed={linkFakeAccountM.isError}
           />
         </div>
 

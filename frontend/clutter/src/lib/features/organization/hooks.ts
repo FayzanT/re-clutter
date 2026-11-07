@@ -71,6 +71,15 @@ export const useOrganizationAccounts = (token?: string | null, organizationId?: 
   });
 };
 
+export const useLinkFakeAccount = (token?: string | null) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (organizationId: string) => organizationApi.linkFakeAccount(token as string, organizationId),
+    onSuccess: (_void, organizationId) => qc.invalidateQueries({ queryKey: orgKeys.accounts(organizationId) }),
+  });
+};
+
 export const useDeleteOrganizationAccount = (token?: string | null) => {
   const qc = useQueryClient();
 

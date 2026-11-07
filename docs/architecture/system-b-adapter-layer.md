@@ -19,8 +19,9 @@ Clutter owns intent (what the customer wants); targets own resources. Callers ta
 
 | Name | Means |
 | --- | --- |
-| **C** | the whole Clutter app |
+| **C** | the whole Clutter app: A + A2 + B |
 | **A** | Clutter as it exists today: the AWS system, complete and tested (`system-a-as-built.md`) |
+| **A2** | the extension that makes A run and test without AWS (`backend/devserver`); it wraps A and does not change it (ADR-011) |
 | **B** | the adapter layer we are building |
 | **B1** | B shipped as a self-hosted, separate service people can run and use. Its connectors are entity connectors. |
 | **B2** | B run internally inside a company's own setup, not hosted by us. Its connectors are instance connectors. |
@@ -211,7 +212,7 @@ Stays in A. It moves into B as a connector only later and piece by piece (Option
 
 | Phase | Work | Done when |
 | --- | --- | --- |
-| 0. Make the seams safe | Authenticate `POST /terraform-engine` and make save-then-compile one authenticated sequence; validate and escape every value that reaches a template; ownership checks on every child id; row-level security or a closed Data API on the database; set the Google client id on log-in so it rejects tokens minted for other apps; narrow the customer role; verify a role before storing it; a lock on state. Make `go test ./...` green offline and add Go build, vet and test to CI. | The open defects in `.claude/findings/NOW.md` that touch shared paths are closed with tests, and CI fails on a Go break. |
+| 0. Make the seams safe | The security and bug fixes A and B share. The list, with a check for each, is in `.claude/findings/NOW.md` § Phase 0. | Every phase 0 task is done, and CI runs all Go packages. |
 | 1. Connector interface, B1 skeleton, General connector | B's Go service with `/v1` (one error envelope, idempotency keys on every create, one run resource, service credentials that resolve to a member), sign-in through A's JWT, the target, instance and credential tables plus the project target field, the translator, the capability check, the job runner with a shared Terraform runner, the target choice screen, and the General connector. | A diagram deploys through B and the General connector to a test target and destroys cleanly; another program can do the same with a service credential; A's AWS path is untouched and still works. |
 | 2. Entity connectors | PatriCloud (Path A or B, depending on Patrii's answer) and TierHive. Manifest, credential verify, state in the target's own storage where it has one. | A diagram with a VM, network and volume deploys to a Patrii test project and destroys cleanly; the same for TierHive. |
 | 3. B2 and instance connectors | Once partner details exist. | Decided with the client, recorded as an ADR, before work starts. |
