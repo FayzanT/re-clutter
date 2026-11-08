@@ -14,7 +14,7 @@ First prove System A: test it locally through A2 (`backend/devserver`), fix what
 - Every local check was run on 2026-10-30 (results in `backend/README.md` and `frontend/clutter/README.md`). Go build and vet, frontend types, lint and build, Terraform validate and the database schema pass. Go tests fail in the 2 known packages, and `terraform fmt` fails on 7 files.
 - The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. Smoke test of all 32 routes: 31 pass, 3 need AWS, 3 expected, 0 fail. Deploy and running Ansible need our own AWS account (`docs/architecture/environments.md`, ADR-010).
 - All 24 `upstream` branches are merged into `main` or stale, except `dev` (CI `actions/checkout` v6) and `database-seed` (an abandoned DynamoDB seed).
-- Waiting on: the team's answers to the questions below, and contacts at Patrii and TierHive.
+- Waiting on: an AWS sandbox (question 11), the client's answers on scope (questions 1 to 6 and 10), and contacts at Patrii and TierHive.
 
 ## Next
 
@@ -56,7 +56,7 @@ Do these before phase 1, in any order unless a row says otherwise. Items 1 to 6 
 | 8 | Verify a role ARN with STS before storing it in `submit-role-arn` | a handler test with a stubbed STS client rejects an ARN it cannot assume; confirmed in AWS later | free | open |
 | 9 | A lock on customer Terraform state (an S3 backend with locking instead of the synced local file) | the deployer's generated backend block has locking; two parallel runs on one diagram are refused, confirmed in AWS later | free | open |
 
-Then phase 1: the connector interface, the B1 skeleton and the General connector (`docs/architecture/system-b-adapter-layer.md` § Build order).
+Then phase 1: the connector interface, the B skeleton (run as B0) and the General connector (`docs/architecture/system-b-adapter-layer.md` § Build order).
 
 ## Open defects in A
 
@@ -99,13 +99,37 @@ Found or confirmed by the 2026-10-30 code sweep (a reader lane; the first four r
 
 Closed: the audit suspected AWS keys were committed in `ac90930`. That commit added `.vscode/.bashrc` and a `.gitignore` entry only; no AWS key pattern appears in the tree or any commit.
 
+## Not planned yet
+
+Needed before real users, and not yet designed. Decide each before prod, with the client where it touches money or law.
+
+- **Cost:** who pays for running Clutter (AWS, Supabase, the Fargate run behind every deploy), and whether users pay for Clutter.
+- **Legal and privacy:** terms of use, a privacy policy, and Canadian privacy law (PIPEDA), because Clutter holds access to users' cloud accounts.
+- **Teams:** inviting members and roles; today an organization has only its creator and the members page is a mock.
+- **Operations:** monitoring and alerts, backups and restore for Postgres and Terraform state, and who is on call.
+- **Leaving:** deleting a user's data, and how a user revokes Clutter's access to their cloud.
+- **Abuse and limits:** rate limits, and a cap on deploys, because each one runs a paid worker.
+- **Template changes:** a template or provider version change can alter what an already-deployed diagram does on its next deploy.
+- **Audit log:** who deployed or destroyed what, and when.
+
 ## Open questions
 
-1. What does General (custom) mean: Terraform with a named provider plus existing hosts over SSH (default), or something else?
-2. Why TierHive, and does the client have a relationship with KernelKeepers LTD? Default: treat TierHive as a later connector and reach it through General until its API ships.
-3. Who contacts Patrii and TierHive, and can we join Patrii's Technology partner program for a sandbox? Default: the client (Alberta 2514640 Inc) makes the contact and asks.
-4. Does B run as a container (default, since B1 is self-hosted) or as Lambdas like A?
-5. Is Patrii a customer target, a host for Clutter itself, or both? Default: a customer target first.
-6. Does a diagram target exactly one target instance? Default: yes.
-7. Should our fork pick up `upstream/dev`'s CI fix (`actions/checkout` v6)? Default: yes, in phase 0's CI work.
-8. Where are instance credentials stored, and how are they secured per instance? Default: an encrypted secret store with only a reference in Postgres.
+Each has a default we act on until someone answers, and the person or source that settles it.
+
+| # | Question | Until answered, we | Settled by |
+| --- | --- | --- | --- |
+| 1 | What does General (custom) cover? | build it as Terraform with a named provider, plus existing servers over SSH | the team and the client |
+| 2 | Which providers does General start with? | plan for DigitalOcean (simple, well-known provider) and OpenStack (what Patrii runs on) | the team and the client |
+| 3 | Why TierHive, and does the client know KernelKeepers LTD? | treat TierHive as a later connector; reach its servers through General's SSH mode | the client |
+| 4 | Who contacts Patrii and TierHive, and can we join Patrii's partner program for a sandbox? | assume the client makes contact; Patrii and TierHive connectors stay blocked | the client; then the five questions in `docs/research/patricloud/2026-10-26-patricloud-research.md` and the questions in the TierHive research go to those companies |
+| 5 | Is Patrii a place to build, a place to host Clutter, or both? | a place to build | the client (data residency needs would change it) |
+| 6 | B0, B1 or B2 first? | B0 (ADR-007) | the client; a customer asking to self-host moves B1 up |
+| 7 | Does B run as a container or as Lambdas like A? | a container, so B1 stays possible | the team, when phase 1 starts |
+| 8 | Where are a user's cloud credentials stored? | an encrypted secret store (AWS Secrets Manager for B0), with only a reference in Postgres | the team, when phase 1 starts |
+| 9 | Where does Terraform state go in B? | in the user's storage when their target has any, otherwise ours, encrypted and locked | the team, when phase 1 starts |
+| 10 | Does one diagram target exactly one cloud? | yes | the client |
+| 11 | Is there an AWS sandbox for dev, and who owns and pays for it? | build and test everything that runs locally; dev waits | the client |
+| 12 | Does the client own the dev and prod accounts (AWS, Supabase, Google, domain) and give the team access? | yes; the team sets them up inside the client's accounts | the client |
+| 13 | Is `main` on the client's repo protected (pull requests and the Checks workflow required)? | assume not, and review pull requests by hand | the client's repo owner |
+| 14 | Should CI move to `actions/checkout` v6, as the client's `dev` branch does? | yes, the next time CI changes | the team |
+| 15 | Are ADR-001 to ADR-011 accepted? They are all still "proposed". | act on them as written | the team, in one review; the client for scope and hosting (ADR-004, ADR-007, ADR-010) |

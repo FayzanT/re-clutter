@@ -46,15 +46,17 @@ Dev and prod do not exist yet, so nothing has been tested there. Their columns s
 
 **Local:** nothing beyond the install list in the root `README.md`. No env file, no accounts.
 
+Clutter in dev and prod is a hosted service (SaaS), like A was: one copy, run for everyone. The accounts that run Clutter itself (world 1, `system-a-as-built.md` § The two worlds) belong to the client, who owns the product and pays for running it, and the team gets access to deploy. Users bring nothing but a Google sign-in and their own cloud account (world 2), which they pay for.
+
 **Dev**, once phase 0 items 1 to 6 are done:
 
-| Thing | Who gets it | Goes into |
+| Thing | Owned by | Goes into |
 | --- | --- | --- |
-| An AWS account for Clutter (dev) | the client or the team | AWS credentials on the deployer's machine |
-| A second AWS account, or the same one, as the sandbox "customer" | same | the account link in the app |
-| A Supabase project (dev) | the team | `psql_connection_string` |
-| A Google OAuth client (dev) | the team | the frontend, and `GOOGLE_CLIENT_ID` on the log-in Lambda |
-| A hosted frontend address (dev) | the team | `frontend_url` |
+| An AWS account for Clutter (dev) | the client; the team gets access | AWS credentials on the deployer's machine |
+| A second AWS account, or the same one, as the sandbox "customer" | the client or the team | the account link in the app |
+| A Supabase project (dev) | the client; the team sets it up | `psql_connection_string` |
+| A Google OAuth client (dev) | the client; the team sets it up | the frontend, and `GOOGLE_CLIENT_ID` on the log-in Lambda |
+| A hosted frontend address (dev) | the client | `frontend_url` |
 | Terraform inputs | filled in from the rows above | `backend/infra/dev.tfvars`, copied from `backend/infra/terraform.tfvars.example` |
 | Frontend config | the dev API address | `frontend/clutter/.env.local`, copied from `frontend/clutter/.env.example`, or the build's environment |
 

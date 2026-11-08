@@ -26,9 +26,9 @@ Other products, and people, call one `/v1` API. It is B API (ADR-006): it sits b
 
 The adapter layer (B) is new code with its own tests, beside today's AWS system (A), not a rewrite of A. B touches A at four named seams only: the UI target choice, shared sign-in and the JWT authorizer, the shared database (a target field on projects, new target, instance and credential tables), and the security fixes on paths B shares with A. Reusing other A code (Option 2) is the fallback and is decided case by case. Turning A into the adapter (Option 3) is a later destination reached piece by piece, never the first move. Why: A is a complete, tested application, and every change to it means retesting every AWS path. Source: the team's plan in `docs/architecture/system-b-team-plan/`. Trade-off: B duplicates some of A (job tracking, logs) until AWS moves into B. Would change if: B needs so much of A that the duplicated code costs more than A's retest would.
 
-## ADR-007: B1 (self-hosted, entity connectors) first; B2 (internal, instance connectors) later (2026-10-30, proposed by the team)
+## ADR-007: B0 (SaaS) first, then B1 (self-hosted), then B2 (internal) (2026-10-30, revised 2026-11-08, proposed)
 
-B1 needs nothing we do not have. B2 needs to know how targets such as TierHive and PatriCloud run inside the companies that use them. Build order: connector interface, B1 skeleton and the General connector; then PatriCloud and TierHive; then B2. Would change if: a partner hands over the details B2 needs, or the client wants B2 first.
+Revised 2026-11-08: B0, B run by us as a hosted service, comes first, because it proves B with the least setup and support work; B1 follows when a customer asks to run Clutter on their own servers. B stays portable (any Postgres, any S3-compatible store) so B1 remains possible. B1 needs nothing we do not have. B2 needs to know how targets such as TierHive and PatriCloud run inside the companies that use them. Build order: connector interface, the B skeleton run as B0, and the General connector; then PatriCloud and TierHive; then B2. Would change if: a partner hands over the details B2 needs, or the client wants B2 first.
 
 ## ADR-008: The General connector comes first, and covers targets without an API (2026-10-30, proposed)
 
