@@ -9,6 +9,23 @@ As it stands on 2026-11-04, from a read of the code and a local run of every rou
 - **Platform infrastructure** (`backend/infra`): Terraform for API Gateway, the Lambdas, S3, ECR, ECS Fargate and SQS, in Clutter's own AWS account, with remote state in S3 and a DynamoDB lock (`backend/tfstate-infra` bootstraps that).
 - **Runners** (`backend/infra/modules/fargate/ecr-scripts`): two container images run as Fargate tasks. `terraform-deployer` runs Terraform for a diagram; `ansible-runner` runs a playbook on the customer's EC2 instances.
 
+## The two worlds
+
+A is a hosted service (SaaS): one copy of Clutter, run for every user. Clutter touches two separate cloud accounts. **World 1** is Clutter's own account: the website, the API, the database and the workers. **World 2** is the user's own account, where the things they draw get built. The user owns and pays for world 2; Clutter only builds there, with access the user grants. A user's diagram is data in world 1; what it builds lives in world 2.
+
+| | World 1: Clutter's account | World 2: the user's account |
+| --- | --- | --- |
+| Holds | the website, the Lambdas and API Gateway, the Fargate workers | whatever the user drew: Lambda, S3, DynamoDB, API Gateway, EC2 |
+| Postgres (Supabase) | users, organizations, members, projects, diagrams and history, linked accounts, deploy logs, Ansible jobs, playbook records, the resource catalog | none from Clutter |
+| S3 | templates; generated Terraform and `status.json`; Terraform state; deploy and job logs; uploaded Lambda code and playbooks | only buckets the user drew |
+| Credentials | the JWT secret and the database password; for each linked AWS account, only a role ARN and an external id | the role the user created for Clutter |
+
+How the worlds meet: the user creates a role in their account through a CloudFormation link and pastes its ARN into Clutter. At deploy, a Fargate worker in world 1 asks AWS (STS) for short-lived keys for that role, then runs Terraform, which builds in world 2. Ansible runs the same way and configures the user's EC2 servers through SSM. Clutter never stores a permanent key for world 2.
+
+Terraform state for every user's diagram sits in world 1, in Clutter's bucket in `us-west-2`, with no lock. It lists everything in the user's account and can hold secrets (an open defect in `.claude/findings/NOW.md`).
+
+An EC2 server is the user's, not Clutter's: Clutter creates it with Amazon Linux 2023, the chosen instance type, an SSM role and an optional SSH key, and nothing else installed. What runs on it comes from the user's own Ansible playbook. Its CPU and memory come from the instance type; its disk is the image's default, with no size option; Clutter sets no security group.
+
 ## How A runs: there is no backend server
 
 A has no server of its own, and it never did. The capstone team built it to run only in AWS: each route is a small function (a Lambda) that AWS starts on demand, and API Gateway gives those functions their URLs. There was nothing to start on a laptop, no `go run`, and no local mode. They developed against their AWS account.
@@ -95,6 +112,7 @@ A cannot:
 
 - deploy anywhere but AWS, or to any region but `us-west-2`
 - create networking (VPCs, subnets, security groups), databases such as RDS, queues, load balancers, DNS, or any resource beyond the five
+- set an EC2 server's disk size, or give an EC2 server access to S3 or DynamoDB (an EC2 connection draws a line and grants nothing)
 - set Lambda environment variables or tags from the UI
 - preview a change (no plan step), estimate cost, import existing infrastructure, or detect drift
 - undo, autosave, or show diagram history (history is written, never shown)

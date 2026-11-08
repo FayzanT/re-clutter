@@ -29,8 +29,10 @@ The names everyone uses:
 | A | Clutter as built (AWS). Changed only at named seams, for bug and security fixes, and by recorded decision. |
 | A2 | the extension that makes A run and test without AWS (`backend/devserver`). It wraps A from outside, with one exception (the local-only **Link fake account** button). For the team, not end users. |
 | B | the adapter layer we are building |
-| B1 | B as a service anyone can run, with entity connectors (built first) |
+| B0 | B run by us as a hosted service (SaaS), built first |
+| B1 | B as a service anyone can run on their own servers, with entity connectors |
 | B2 | B run inside a company, with instance connectors (later) |
+| world 1, world 2 | Clutter's own cloud account, and the user's account where their diagram gets built (`docs/architecture/system-a-as-built.md` § The two worlds) |
 | connector | the code for one target type (General, PatriCloud, TierHive). An *entity connector* is one we write for a target type (B1); an *instance connector* is one a company builds for its own setup (B2). |
 | PatriCloud | our working name for Patrii Cloud (patrii.cloud), a Canadian cloud; the same thing |
 | General | the first connector: Terraform with any provider the customer names, or servers they already have over SSH (the exact scope is open question 1 in `NOW.md`) |

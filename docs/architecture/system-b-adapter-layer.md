@@ -6,6 +6,10 @@ Status: proposed. First written 2026-10-26, revised 2026-10-30 to follow the tea
 
 Expand the Clutter codebase so a diagram can deploy to targets other than AWS: a General (custom) target first, then PatriCloud (our working name for Patrii Cloud) and TierHive, and whatever comes later. There is one standard way for Clutter to talk to any target (the **connector interface**), and one **connector** per target. The people who come after us add connectors without reworking what exists.
 
+**The problem.** People want to describe infrastructure as a picture and have it built for real in their own cloud, without writing Terraform. A does that for AWS only, and AWS is wired through its core: the generator, the canvas, the account link and the deployer. Adding one more cloud to A means rewriting all four.
+
+**The value of the adapter layer.** The core (canvas, translator, capability check, job runner) is written once, and each target is one connector. A new target costs a connector, not a rewrite. For users: one diagram builds on AWS, on Canadian clouds such as Patrii, on cheap VPS hosts, or on any cloud Terraform supports. For customers who will not hand their cloud keys to an outside service: they can run Clutter themselves (B1). For later teams: they add targets without touching what works.
+
 The layer has two faces:
 
 - **Outbound:** connectors behind one interface. Adding a target means writing a connector, not editing the core.
@@ -23,6 +27,7 @@ Clutter owns intent (what the customer wants); targets own resources. Callers ta
 | **A** | Clutter as it exists today: the AWS system, complete and tested (`system-a-as-built.md`) |
 | **A2** | the extension that makes A run and test without AWS (`backend/devserver`); it wraps A and does not change it (ADR-011) |
 | **B** | the adapter layer we are building |
+| **B0** | B run by us as a hosted service (SaaS). Built first. |
 | **B1** | B shipped as a self-hosted, separate service people can run and use. Its connectors are entity connectors. |
 | **B2** | B run internally inside a company's own setup, not hosted by us. Its connectors are instance connectors. |
 | **X1 … Xn**, or **1 … n** | connectors, one per target type (PatriCloud, General, TierHive) |
@@ -60,9 +65,21 @@ Any other change to A is a decision, recorded in `docs/decisions.md` before it i
 
 ## Level 2: inside B
 
-### B1 or B2
+### B0, B1 or B2
 
-Users pick B1, A (AWS) or B2. B1 is built first: it needs nothing we do not have. B2 needs information we do not have yet: how targets such as TierHive and PatriCloud work inside the companies that use them. The same connectors serve both; in B2 they become instance connectors that each company owns.
+The same B can be delivered three ways. They differ in who runs world 1 (Clutter itself, see `system-a-as-built.md` § The two worlds) and so who holds the users' cloud credentials.
+
+| | B0: SaaS | B1: self-hosted | B2: internal |
+| --- | --- | --- | --- |
+| World 1 runs | in our cloud, run by us | on the customer's own servers, run by them | inside a company, run by them |
+| World 2 builds in | the users' clouds | the customer's clouds | the company's private systems |
+| Postgres | ours | theirs (any Postgres) | theirs |
+| Object storage | ours | theirs (any S3-compatible: MinIO, Ceph, Patrii's S3) | theirs |
+| Secret store and cloud credentials | held by us | held by them | held by them |
+| Connectors | ours | ours | ours, plus instance connectors the company writes |
+| Good for | most users | companies that will not hand their keys to an outside service | companies with in-house clouds |
+
+Order: B0 first, B1 when a customer asks for it, B2 only with a partner who supplies the details. For B1 and B2 to stay possible, B never assumes AWS S3 or Supabase: it takes any Postgres and any S3-compatible store from day one. A has Supabase-only parts (the `anon` role) that B does not copy; A2's local S3 already shows the S3 code working against a store that is not AWS.
 
 ### Standard features, connectors and instances
 
@@ -175,6 +192,49 @@ What each part replaces in A, for the day AWS moves into B (Option 3, later):
 
 Not in the standard until a handler exists: member invites and roles, token refresh and revoke, and diagram history (A writes it, never exposes it).
 
+### Connecting a target
+
+To build in a user's cloud, Clutter needs that user's permission. A connector's `Credentials` method says what to ask for, and `VerifyInstance` proves it works before anything is saved. There are two kinds:
+
+- **Borrowed access**, the kind A uses for AWS: the user creates a role or identity in their cloud that trusts Clutter, and Clutter asks the cloud for short-lived keys at each run. Nothing permanent is stored; the user revokes access by deleting the role.
+- **A stored token or key**, when the cloud offers nothing else: Clutter must keep it.
+
+| Target | The user supplies | Kind |
+| --- | --- | --- |
+| AWS | a role, through a CloudFormation link (as in A) | borrowed, short-lived |
+| Azure, Google Cloud | an identity that trusts Clutter (workload identity federation) | borrowed, short-lived |
+| OpenStack, including Patrii if it opens its endpoints | an application credential with an expiry and access rules | scoped token |
+| DigitalOcean, TierHive's future API, most hosts | an API token | stored token |
+| Existing servers (General's SSH mode) | an address and an SSH key | stored key |
+
+Rules: prefer borrowed access wherever the target supports it. A stored token goes into a secret store, encrypted, and Postgres keeps only a reference to it. The token reaches the runner for one run only and never reaches a log, a response or a doc.
+
+### What a connector may and may not do
+
+| May | May not |
+| --- | --- |
+| say what its target offers (its manifest) | read or write Clutter's Postgres; the core does that |
+| check a set of credentials | see any other organization's data |
+| plan, apply and destroy in one user's target, with that user's credentials, for one run | keep credentials after the run |
+| return logs and results | put a secret in a log or a result |
+
+So a faulty connector can reach only the one target it was handed, for one run.
+
+### Where data lives
+
+World 1 keeps the same kinds of data as in A: users, organizations, projects, diagrams and runs in Postgres; generated files and logs in object storage; credentials in a secret store (for AWS, only a role reference). Terraform state is the exception: it goes to the user's own storage in world 2 when the target has any (Patrii's S3-compatible store, for example), and otherwise to Clutter's storage, encrypted and locked, never as A does today (unlocked, in one US bucket for every user).
+
+What each target can build in world 2 is its manifest. Today's best estimate:
+
+| | AWS (A) | PatriCloud | TierHive | General |
+| --- | --- | --- | --- | --- |
+| VM | EC2 | VPS | VPS | the provider's |
+| Object storage | S3 | S3-compatible | none | depends |
+| Block disk | EC2's default disk | volumes | part of the VM | depends |
+| Database | DynamoDB | managed Postgres, MySQL and others | none | depends |
+| Serverless, API front door | Lambda, API Gateway | none | none | depends |
+| Network, load balancer, DNS | not offered | yes | private network, HAProxy | depends |
+
 ### Where B runs
 
 B1 is a service other people can run, so it cannot depend on Clutter's own API Gateway and Lambdas. The default is one Go service in a container that runs anywhere: hosted by us next to A, or self-hosted. The Terraform runner is a second process that sits where it can reach the target and the state; whoever runs it holds the target credentials and the state. Hosting moves custody, not the contract (ADR-004).
@@ -183,9 +243,9 @@ B1 is a service other people can run, so it cannot depend on Clutter's own API G
 
 ### General (custom)
 
-Built first, in phase 1, because it needs no partner. Its meaning is still open (question 2 below). The default proposal has two modes:
+Built first, in phase 1, because it needs no partner. Its scope is open (question 1 in `.claude/findings/NOW.md`). The default proposal has two modes:
 
-- **Terraform with a named provider:** the instance names a Terraform provider and supplies its credentials, and the manifest exposes the resources of that provider the team chooses to support.
+- **Terraform with a named provider:** the instance names a Terraform provider and supplies its credentials, and the manifest exposes the resources of that provider the team chooses to support. Every provider publishes what it can build and each field it takes (`terraform providers schema -json`: required, optional and sensitive fields), so the manifest and the canvas's forms can be built from that. Big providers have hundreds of resources, and turning a raw schema into a usable canvas is the hard part, so General starts with a small chosen set from one or two providers. A comparable product, Brainboard, already turns diagrams into Terraform for a fixed set of large clouds.
 - **Existing hosts:** the instance is a list of hosts the customer already has, reached over SSH (through a bastion where needed), and the config runner feature runs Ansible against them. This is also how a TierHive or Patrii server created by hand is used before those connectors exist.
 
 ### PatriCloud
@@ -213,12 +273,12 @@ Stays in A. It moves into B as a connector only later and piece by piece (Option
 | Phase | Work | Done when |
 | --- | --- | --- |
 | 0. Make the seams safe | The security and bug fixes A and B share. The list, with a check for each, is in `.claude/findings/NOW.md` § Phase 0. | Every phase 0 task is done, and CI runs all Go packages. |
-| 1. Connector interface, B1 skeleton, General connector | B's Go service with `/v1` (one error envelope, idempotency keys on every create, one run resource, service credentials that resolve to a member), sign-in through A's JWT, the target, instance and credential tables plus the project target field, the translator, the capability check, the job runner with a shared Terraform runner, the target choice screen, and the General connector. | A diagram deploys through B and the General connector to a test target and destroys cleanly; another program can do the same with a service credential; A's AWS path is untouched and still works. |
+| 1. Connector interface, B skeleton (run as B0), General connector | B's Go service with `/v1` (one error envelope, idempotency keys on every create, one run resource, service credentials that resolve to a member), sign-in through A's JWT, the target, instance and credential tables plus the project target field, the translator, the capability check, the job runner with a shared Terraform runner, the target choice screen, and the General connector. | A diagram deploys through B and the General connector to a test target and destroys cleanly; another program can do the same with a service credential; A's AWS path is untouched and still works. |
 | 2. Entity connectors | PatriCloud (Path A or B, depending on Patrii's answer) and TierHive. Manifest, credential verify, state in the target's own storage where it has one. | A diagram with a VM, network and volume deploys to a Patrii test project and destroys cleanly; the same for TierHive. |
 | 3. B2 and instance connectors | Once partner details exist. | Decided with the client, recorded as an ADR, before work starts. |
 | Later, optional. AWS into B | Move AWS behind the connector interface piece by piece. | Generated HCL for a set of fixture diagrams is byte-identical before and after each piece. |
-| Hosting model | SaaS on AWS, hosted on Patrii, or self-hosted B1 (ADR-004 holds the default). | Decided with the client, recorded as an ADR. |
+| Hosting model | B0 first, then B1 when a customer asks (ADR-004, ADR-007); hosting Clutter itself on Patrii only if the client needs Canadian hosting. | Decided with the client, recorded as an ADR. |
 
 ## Questions that block or shape the plan
 
-The open questions, each with its default, are kept in one list: `.claude/findings/NOW.md` § Open questions. Questions 1 to 6 and 8 there shape this design; for Patrii, also the five questions at the end of `docs/research/patricloud/2026-10-26-patricloud-research.md`.
+The open questions, each with its default, are kept in one list: `.claude/findings/NOW.md` § Open questions. Questions 1 to 10 there shape this design; for Patrii, also the five questions at the end of `docs/research/patricloud/2026-10-26-patricloud-research.md`.
