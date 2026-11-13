@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Deploys Clutter to a cloud environment (docs/architecture/environments.md).
-#   npm run deploy:plan -- dev     shows what would change, changes nothing
-#   npm run deploy -- dev          plans, asks, then applies
-#   npm run deploy:destroy -- dev  plans a teardown, asks, then applies it (never prod)
+#   npm run deploy:plan -- prod    shows what would change, changes nothing
+#   npm run deploy -- prod         plans, asks, then applies (clean main only)
+#   npm run deploy:destroy -- dev  plans a teardown of a test environment (never prod); unused until one exists
 # Run by a person, never by a session. It has not yet been run against real AWS: only its checks
 # are tested (test-deploy.sh). It covers the platform Terraform; the steps it cannot do are printed
 # at the end.

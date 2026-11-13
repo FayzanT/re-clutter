@@ -13,7 +13,8 @@ Each kind of fact has one owner. Change a fact at its owner, in the same change 
 | Backend layout, checks and their results, A's Go and shell lint, adding a Lambda | `backend/README.md` |
 | Frontend layout, run variants, checks and their results, browser results | `frontend/clutter/README.md` |
 | The generator's internals | `backend/api/terraform-engine/create/README.md` |
-| What differs between local, dev and prod, what works where, and how to set up a cloud environment | `docs/architecture/environments.md` |
+| What differs between local and the cloud, what works where, and how to set up the cloud | `docs/architecture/environments.md` |
+| The worlds, delivery models and environments in one picture | `docs/architecture/figures/clutter-worlds.png` (shown in `system-b-adapter-layer.md`) |
 | What we are building (System B, the adapter layer), its names and its phases | `docs/architecture/system-b-adapter-layer.md` |
 | The team's A/B plan as the team wrote it (Options 1 to 3, B1 and B2, figures and explanation) | `docs/architecture/system-b-team-plan/` (source material; `system-b-adapter-layer.md` owns the plan from here on) |
 | The second research run on Patrii and Clutter (2026-10-26) | `docs/research/patricloud/2026-10-26-second-research-run/` (source material, folded into the docs above) |

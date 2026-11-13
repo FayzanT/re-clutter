@@ -32,6 +32,8 @@ The names everyone uses:
 | B0 | B run by us as a hosted service (SaaS), built first |
 | B1 | B as a service anyone can run on their own servers, with entity connectors |
 | B2 | B run inside a company, with instance connectors (later) |
+| 2.1, 2.2 | where a diagram builds: 2.1 the user's own accounts, which they link to Clutter (what we build); 2.2 accounts Clutter owns and resells (not now) |
+| connection, deployment | a linked cloud account; one diagram deployed to one connection. One diagram can have several deployments. |
 | world 1, world 2 | Clutter's own cloud account, and the user's account where their diagram gets built (`docs/architecture/system-a-as-built.md` § The two worlds) |
 | connector | the code for one target type (General, PatriCloud, TierHive). An *entity connector* is one we write for a target type (B1); an *instance connector* is one a company builds for its own setup (B2). |
 | PatriCloud | our working name for Patrii Cloud (patrii.cloud), a Canadian cloud; the same thing |
@@ -63,7 +65,7 @@ docs/
   architecture/
     system-a-as-built.md       A: what exists today
     system-b-adapter-layer.md  B: what we are building, and in what order
-    environments.md            local vs dev vs prod: what differs and what each needs
+    environments.md            local vs cloud: what differs and what each needs
     system-b-team-plan/        the team's own B plan: figures, PDF and the written explanation
   decisions.md      every decision and why (ADR-001 onward; ADR means architecture decision record)
   research/
@@ -178,11 +180,11 @@ Frontend edits reload by themselves. After editing Go code, press Ctrl+C and run
 | `npm run smoke` | calls all 32 routes and prints what passed (with `npm run dev` running) |
 | `npm run stop` | stops a backend left running |
 | `npm run stop -- --wipe` | also deletes the local database, to start clean |
-| `npm run deploy:plan -- dev` | for later: shows what a cloud deploy would change (`docs/architecture/environments.md`) |
+| `npm run deploy:plan -- prod` | for later: shows what a cloud deploy would change (`docs/architecture/environments.md`) |
 
 A has no backend server of its own, so this runs stand-ins for its AWS parts. `docs/architecture/system-a-as-built.md` § How A runs has the table of what is real and what stands in. What works locally and what does not is in `backend/devserver/README.md`.
 
-Deploying and running Ansible need real AWS: `docs/architecture/environments.md` says what dev and prod need.
+Deploying and running Ansible need real AWS: `docs/architecture/environments.md` says what the cloud needs.
 
 ## Do not run
 

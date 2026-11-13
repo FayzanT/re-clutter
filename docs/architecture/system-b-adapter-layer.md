@@ -1,6 +1,6 @@
 # System B: the adapter layer (planned)
 
-Status: proposed. First written 2026-10-26, revised 2026-10-30 to follow the team's architecture plan (the figures and write-up in `docs/architecture/system-b-team-plan/`). Nothing here is built yet. The decisions it rests on are in `docs/decisions.md`; what exists today is `system-a-as-built.md`; the Patrii facts are in `docs/research/patricloud/2026-10-26-patricloud-research.md`.
+Status: proposed. First written 2026-10-26, revised 2026-10-30 to follow the team's architecture plan (the figures and write-up in `docs/architecture/system-b-team-plan/`), and revised 2026-11-13 for the product shape: B0 with users' own accounts, one diagram with many deployments, and AWS as a B connector too (ADR-013 to ADR-016). Nothing here is built yet. The decisions it rests on are in `docs/decisions.md`; what exists today is `system-a-as-built.md`; the Patrii facts are in `docs/research/patricloud/2026-10-26-patricloud-research.md`.
 
 ## The goal
 
@@ -9,6 +9,8 @@ Expand the Clutter codebase so a diagram can deploy to targets other than AWS: a
 **The problem.** People want to describe infrastructure as a picture and have it built for real in their own cloud, without writing Terraform. A does that for AWS only, and AWS is wired through its core: the generator, the canvas, the account link and the deployer. Adding one more cloud to A means rewriting all four.
 
 **The value of the adapter layer.** The core (canvas, translator, capability check, job runner) is written once, and each target is one connector. A new target costs a connector, not a rewrite. For users: one diagram builds on AWS, on Canadian clouds such as Patrii, on cheap VPS hosts, or on any cloud Terraform supports. For customers who will not hand their cloud keys to an outside service: they can run Clutter themselves (B1). For later teams: they add targets without touching what works.
+
+**The product, as a user sees it.** Clutter is one hosted product, in the way Brainboard is: a user signs in, links the clouds they already have (an AWS account, an OpenStack project, a hosting provider, their own servers), draws one diagram, and deploys it to any of those clouds, or to several. They never see A, B or a connector; they see one editor, one Connections page and one deploy panel.
 
 The layer has two faces:
 
@@ -33,12 +35,30 @@ Clutter owns intent (what the customer wants); targets own resources. Callers ta
 | **X1 … Xn**, or **1 … n** | connectors, one per target type (PatriCloud, General, TierHive) |
 | **entity connector** | a connector for a target type, written once by us (B1) |
 | **instance connector** | a connector a company builds or configures for its own setup (B2) |
-| **I1 … In** | an instance: one company's configured setup of a connector (credentials, region, workspaces) |
+| **I1 … In** | an instance: one company's configured setup of a connector (credentials, region, workspaces). The UI calls it a **connection**. |
 | **workspace** | a deploy environment inside an instance (for example "prod") |
-| **a … n** | the standard features every connector maps onto (compute VM, object storage, config runner, serverless function, …) |
-| **project**, **diagram** | as in A: a project holds diagrams; B adds a target field to the project |
+| **a … n** | the standard features every connector maps onto. In the editor they are the **building blocks**: VM, network, volume, bucket, function, table, HTTP API |
+| **project**, **diagram** | as in A: a project holds diagrams |
+| **deployment** | one diagram bound to one connection, with its own settings, Terraform state and run history. A diagram can have several. |
+| **2.1** | world 2 is the user's own cloud accounts, which they link to Clutter. **Built.** |
+| **2.2** | world 2 is cloud accounts Clutter owns and resells. **Not now** (ADR-013). |
 
 A cloud's own word for its tenant (Patrii and OpenStack call it a project) is never used for a Clutter object in B's code; it is a connector-side field such as `patrii_project_id`.
+
+## Four separate questions
+
+Most confusion about B comes from mixing four questions that have separate answers.
+
+| Question | Choices | Chosen |
+| --- | --- | --- |
+| Who runs Clutter itself (world 1)? | B0 us, as SaaS · B1 the customer, self-hosted · B2 a company, internally | **B0** (ADR-007) |
+| Whose cloud does a diagram build in (world 2)? | 2.1 the user's own accounts · 2.2 accounts Clutter owns and resells | **2.1** (ADR-013) |
+| How is B's code related to A's? | Option 1 beside A · Option 2 reuse parts of A · Option 3 turn A into a connector | **Option 1**, reusing A's sign-in, database and templates (ADR-006, ADR-014) |
+| Which copy of world 1 is it? | local · cloud | **local and one cloud**, run with prod rules (ADR-015) |
+
+B1 is not 2.2. B1 means a customer runs Clutter on their own servers and builds in their own clouds; 2.2 means Clutter owns the clouds users build in. The user never sees any of these choices.
+
+![World 1 and world 2, who runs Clutter, and the copies of it](figures/clutter-worlds.png)
 
 ## Level 1: how B attaches to A
 
@@ -56,9 +76,9 @@ The trade-off of Option 2: once B depends on parts of A, a change there can brea
 
 These are unavoidable and named here so that Option 1 does not drift into Option 2 without a decision:
 
-1. **The UI target choice.** A new screen asks where a diagram deploys: AWS goes to A's existing screens, Custom goes to B's new target screens.
+1. **The UI.** A Connections page for every cloud, a palette and forms read from connector manifests, and a deploy panel that lists the diagram's deployments. Existing AWS diagrams keep A's screens and calls; new diagrams call B.
 2. **Shared sign-in and the JWT authorizer.** Users sign in once. B verifies A's JWT.
-3. **The shared database.** Orgs, projects and diagrams stay A's tables. B adds a target field on projects and new tables for targets, instances and credentials.
+3. **The shared database.** Orgs, projects and diagrams stay A's tables. B adds tables for connections, credential references, deployments and runs. B reads A's linked AWS roles as AWS connections, so a user links an AWS account once.
 4. **A's security defects.** B inherits A's sign-in, its database and its membership check, so the defects in `.claude/findings/NOW.md` that sit on those paths are B's defects too. Fixing them is the one change to A's behaviour this plan requires (phase 0). The open generation endpoint and the database's row-level security are the two that touch shared paths directly.
 
 Any other change to A is a decision, recorded in `docs/decisions.md` before it is made.
@@ -94,16 +114,41 @@ Each connector declares, per standard feature, how it treats it. This is the cap
 
 Shared behaviour lives in the standard features. Differences live in the connector or the instance, never in the standard set. The UI hides what a target cannot do instead of failing at deploy time.
 
-The first standard features come from A's real resource types: compute VM (EC2 today), object storage (S3), config runner (Ansible over SSM), serverless function (Lambda). DynamoDB and API Gateway follow as features only connectors that have them declare.
+The first building blocks, and what each first connector maps them to:
+
+| Building block | AWS connector | OpenStack connector (General) |
+| --- | --- | --- |
+| VM | EC2 instance | Nova server |
+| Network and subnet | not offered yet (default VPC) | Neutron network, subnet and router |
+| Firewall rules | security group | security group |
+| Block volume | not offered yet | Cinder volume |
+| Bucket | S3 bucket | removed (Swift later) |
+| Function | Lambda | removed |
+| Key-value table | DynamoDB | removed |
+| HTTP API | API Gateway | removed |
+| Config runner | Ansible over SSM | Ansible over SSH (later) |
+
+"Not offered yet" is work, not a limit: the AWS connector can add VPCs and volumes A never had.
 
 Principles carried from the first design:
 
-1. **Capability-based, not lowest common denominator.** A common-denominator model would remove Lambda, API Gateway and DynamoDB from every user to make room for a target that lacks them.
-2. **Target-native nodes first.** A node is "Patrii VPS" or "AWS EC2" under the standard feature it maps to. Generic nodes that deploy unchanged to several targets can come later, once two connectors exist to learn from.
+1. **Capability-based, not lowest common denominator.** A common-denominator model would remove Lambda, API Gateway and DynamoDB from every user to make room for a target that lacks them. A diagram may use any block; a target that lacks one says so before anything runs.
+2. **Building blocks first, target-only extras allowed.** A node is a building block ("VM") with common fields (name, size, image) and per-target settings (an AWS instance type, an OpenStack flavor). A target-only node (marked "new" in its manifest, such as a GPU flavor) is allowed, but it limits which targets the diagram can deploy to. This replaces "target-native nodes first" (ADR-014).
 3. **One owner per resource definition.** The connector's manifest, in Go, is the single source. B's catalog route, palette and config panel read it; nothing is maintained beside it. (A's five-place drift is not repeated in B.)
 4. **B's core never names a connector.** It asks the registry for the project's target and calls the interface. A `switch target` in the core is a defect.
 5. **Credentials are the connector's shape, stored B's way.** Each connector declares its credential schema and how to verify it. B stores a reference to an encrypted secret, never the secret in a plain column, and never logs it.
 6. **State lives with the target where it allows it.** For Patrii, Terraform state for a customer's diagram belongs in that customer's object storage, with locking, not in Clutter's US bucket.
+
+### One diagram, many deployments
+
+A diagram is drawn once. Each place it runs is a **deployment**: the diagram, one connection, that connection's settings, and its own Terraform state and runs (ADR-014).
+
+- **Deploying to several clouds** means deploying each deployment. Each is an independent run; one failing does not undo another.
+- **The deploy panel shows a compatibility line per connection,** computed by the capability check: "AWS: ready", "OpenStack: 1 block not supported (Function)". A deployment with an unsupported block cannot start.
+- **Settings that differ per cloud** live on the deployment, not on the diagram: instance type on AWS, flavor and image on OpenStack, region on both.
+- **Edges** between blocks mean the same everywhere they can: a VM attached to a network, a volume to a VM, a function allowed to read a bucket. Each connector turns an edge into its own wiring (an IAM policy on AWS, an attachment on OpenStack). An edge a target cannot express is reported like an unsupported block.
+
+Later, not in the first build: blocks in one diagram placed on different clouds (an OpenStack VM reading an AWS bucket). Edges across clouds cannot carry permissions, only addresses and keys passed as settings, so this waits until single-cloud deployments work.
 
 ## Level 3: how B works
 
@@ -121,7 +166,7 @@ Principles carried from the first design:
 
 ### One deploy through B
 
-1. The user clicks Deploy and picks a target instance (for example Acme's TierHive).
+1. The user clicks Deploy on one or more of the diagram's deployments (for example Acme's OpenStack).
 2. B API sends the diagram to the translator.
 3. The translator builds the neutral graph and runs the capability check.
 4. The result comes back: OK, or the unsupported pieces.
@@ -207,7 +252,19 @@ To build in a user's cloud, Clutter needs that user's permission. A connector's 
 | DigitalOcean, TierHive's future API, most hosts | an API token | stored token |
 | Existing servers (General's SSH mode) | an address and an SSH key | stored key |
 
-Rules: prefer borrowed access wherever the target supports it. A stored token goes into a secret store, encrypted, and Postgres keeps only a reference to it. The token reaches the runner for one run only and never reaches a log, a response or a doc.
+Rules: prefer borrowed access wherever the target supports it. A stored token goes into a secret store, encrypted, and Postgres keeps only a reference to it. The token reaches the runner for one run only and never reaches a log, a response or a doc. Clutter never asks for a cloud password (ADR-016).
+
+Where a stored token lives: in B0, AWS Secrets Manager in Clutter's account, one secret per connection; locally, A2 encrypts it with a key from its own config. Deleting a connection deletes its secret. The runner reads the token at the start of a run, passes it to Terraform as an environment variable, and drops it when the run ends.
+
+### The Connections page
+
+Linking a cloud is the step most users fail at, so it gets the most care:
+
+- **One page, one tile per kind of cloud.** A connection belongs to the organization, so every diagram and every teammate reuses it.
+- **AWS stays one click:** the existing CloudFormation link creates the role. B then checks the role itself (`VerifyInstance`) instead of asking the user to paste an ARN and trusting it.
+- **OpenStack accepts what the user already has:** a `clouds.yaml` file or an openrc file, or the fields typed in. The page explains how to create an application credential and asks for one, not a password.
+- **Every connection is verified before it is saved,** and the page shows its state: working, failed with the reason, or expiring soon.
+- **Errors say what to do next** ("this credential cannot create volumes: add the volume permission"), not a raw cloud error.
 
 ### What a connector may and may not do
 
@@ -237,7 +294,7 @@ What each target can build in world 2 is its manifest. Today's best estimate:
 
 ### Where B runs
 
-B1 is a service other people can run, so it cannot depend on Clutter's own API Gateway and Lambdas. The default is one Go service in a container that runs anywhere: hosted by us next to A, or self-hosted. The Terraform runner is a second process that sits where it can reach the target and the state; whoever runs it holds the target credentials and the state. Hosting moves custody, not the contract (ADR-004).
+A's API is many small Lambda functions behind API Gateway: each route starts on demand, and it only runs on AWS. B is one Go service in a container instead, for three reasons. Its main work is Terraform runs that last minutes and need the Terraform binary and its providers (hundreds of megabytes), which do not fit Lambda's limits; A runs those parts in containers too (its Fargate deployer). B1 is a service other people run on their own servers, so B cannot depend on Clutter's own API Gateway and Lambdas. And one service is simpler to run locally. In B0 the container runs on AWS Fargate, the same service A's deployer uses. The default is one Go service in a container that runs anywhere: hosted by us next to A, or self-hosted. The Terraform runner is a second process that sits where it can reach the target and the state; whoever runs it holds the target credentials and the state. Hosting moves custody, not the contract (ADR-004).
 
 ## The connectors
 
@@ -247,6 +304,8 @@ Built first, in phase 1, because it needs no partner. Its scope is open (questio
 
 - **Terraform with a named provider:** the instance names a Terraform provider and supplies its credentials, and the manifest exposes the resources of that provider the team chooses to support. Every provider publishes what it can build and each field it takes (`terraform providers schema -json`: required, optional and sensitive fields), so the manifest and the canvas's forms can be built from that. Big providers have hundreds of resources, and turning a raw schema into a usable canvas is the hard part, so General starts with a small chosen set from one or two providers. A comparable product, Brainboard, already turns diagrams into Terraform for a fixed set of large clouds.
 - **Existing hosts:** the instance is a list of hosts the customer already has, reached over SSH (through a bastion where needed), and the config runner feature runs Ansible against them. This is also how a TierHive or Patrii server created by hand is used before those connectors exist.
+
+The first provider is OpenStack (ADR-014). It is tested on DevStack, which needs no account, and it is the same code Patrii's Path A needs: when Patrii opens its OpenStack endpoints, Patrii is a new connection, not a new connector.
 
 ### PatriCloud
 
@@ -266,19 +325,61 @@ TierHive (KernelKeepers LTD) is an alpha hourly NAT VPS host with no public API,
 
 ### AWS
 
-Stays in A. It moves into B as a connector only later and piece by piece (Option 3 as a destination), once B's interface has proven general enough for it.
+AWS is in both systems (ADR-014). A stays as it is and keeps serving the AWS diagrams users already have. B gets an AWS connector so a new diagram can deploy to AWS as one of its deployments. The connector reuses A's customer templates (`*.tf.tmpl`) and A's role link, so the AWS Terraform is not written twice; it adds what A lacks, such as VPCs and volumes, as new templates. When the AWS connector covers all five of A's resources and Ansible, A's own AWS flow can retire, which is Option 3 reached piece by piece.
+
+## What the user sees
+
+The pages, in the order a new user meets them:
+
+| Page | Today (A) | After B |
+| --- | --- | --- |
+| Sign in with Google | exists | the client's own Google client |
+| Create an organization, dashboard | exists | unchanged |
+| Connections | an AWS-only account page | one page for every cloud (§ The Connections page) |
+| Project, then diagram | exists | unchanged |
+| Editor: palette, canvas, config panel | AWS's five resources, lists hard-coded in three places | building blocks from the manifests; per-target settings on each deployment |
+| Preview Terraform | exists for AWS | one tab per deployment |
+| Deploy panel: deploy, destroy, live status, logs, outputs | AWS only | every deployment, with its compatibility line |
+| Run history | partly | per deployment |
+| Members and roles | a mock page | real invites (needed before live collaboration) |
+| Live collaboration | not built | built by the other team on the stable diagram document (ADR-013) |
+| Import from AWS | not built | read-only discovery that becomes a diagram (a should-have) |
+
+The finished demo: sign in; show the AWS and OpenStack connections as verified; draw a VM, a network, a volume and a function; the OpenStack deployment flags the function; deploy to AWS and to OpenStack, show the resources in each cloud's own console, and destroy both. Live collaboration and import from AWS join the demo when they exist.
+
+## What Clutter can do when this is done
+
+| Ability | Before | After |
+| --- | --- | --- |
+| Clouds a diagram can deploy to | AWS | AWS, any OpenStack (DevStack, and Patrii once it opens), more Terraform providers one connector at a time, existing servers over SSH |
+| Deploy one diagram to several clouds | no | yes, one deployment per connection |
+| Resources | five AWS resources | the building blocks above, per target |
+| Checks before deploy | none | the capability check per deployment, input validation, the Terraform preview |
+| Linking a cloud | AWS role, never verified | every connection verified before it is saved |
+| Credentials | an AWS role only | a role where the cloud allows it, otherwise an encrypted secret; never a password |
+| Terraform state | one unlocked US bucket for everyone | per deployment, locked, in the user's storage where the target has some |
+| Use without the UI | no | the versioned B API, with service credentials |
+| Security | the open defects in `.claude/findings/NOW.md` | closed before B reuses the shared paths |
+
+Still not done after this plan: B1 and B2, Clutter-managed accounts (2.2), blocks spread across clouds in one diagram, Patrii-specific testing until Patrii opens, and a TierHive connector until TierHive has an API.
 
 ## Build order
 
-| Phase | Work | Done when |
+Each stage can be done and checked on a laptop except stage 7, which needs the client's AWS account.
+
+| Stage | Work | Done when |
 | --- | --- | --- |
-| 0. Make the seams safe | The security and bug fixes A and B share. The list, with a check for each, is in `.claude/findings/NOW.md` § Phase 0. | Every phase 0 task is done, and CI runs all Go packages. |
-| 1. Connector interface, B skeleton (run as B0), General connector | B's Go service with `/v1` (one error envelope, idempotency keys on every create, one run resource, service credentials that resolve to a member), sign-in through A's JWT, the target, instance and credential tables plus the project target field, the translator, the capability check, the job runner with a shared Terraform runner, the target choice screen, and the General connector. | A diagram deploys through B and the General connector to a test target and destroys cleanly; another program can do the same with a service credential; A's AWS path is untouched and still works. |
-| 2. Entity connectors | PatriCloud (Path A or B, depending on Patrii's answer) and TierHive. Manifest, credential verify, state in the target's own storage where it has one. | A diagram with a VM, network and volume deploys to a Patrii test project and destroys cleanly; the same for TierHive. |
-| 3. B2 and instance connectors | Once partner details exist. | Decided with the client, recorded as an ADR, before work starts. |
-| Later, optional. AWS into B | Move AWS behind the connector interface piece by piece. | Generated HCL for a set of fixture diagrams is byte-identical before and after each piece. |
-| Hosting model | B0 first, then B1 when a customer asks (ADR-004, ADR-007); hosting Clutter itself on Patrii only if the client needs Canadian hosting. | Decided with the client, recorded as an ADR. |
+| 0. Housekeeping | Bring the client's repo up to date by pull request; record these decisions; send the client the questions in `.claude/findings/NOW.md`. | The client's `main` matches ours and the client has the questions. |
+| 1. Make A safe | Phase 0 in `.claude/findings/NOW.md`: the generation route, template escaping, ownership checks, offline Go tests, row-level security, the Google audience check, package updates. | Every phase 0 item that can be checked locally is done, and CI runs all Go packages. |
+| 2. A test cloud on the laptop | DevStack in a virtual machine; create and destroy a VM by hand with Terraform's OpenStack provider. | A VM, network and volume are created and destroyed by `terraform apply` and `destroy` against DevStack. |
+| 3. B's core | One Go container: B API with A's sign-in and database, the connection, credential, deployment and run tables, the connector interface and registry, a mock connector with the shared contract tests, the translator, the capability check, the job runner and the shared Terraform runner, the credential store. | The mock connector passes the contract tests in CI; a run moves through queued, running and completed with logs. |
+| 4. The General connector, OpenStack first | Manifest, credentials (an application credential), verify, plan, apply, destroy, logs. | A diagram with a VM, network and volume deploys to DevStack through B and destroys cleanly. |
+| 5. The AWS connector | Reuses A's templates and role link, behind the same interface. | Locally, the same diagram's AWS deployment generates Terraform that passes `terraform validate`; in stage 7 it deploys to the test AWS account and destroys cleanly. |
+| 6. The frontend | Connections page, building-block palette and forms from manifests, deployments in the deploy panel, compatibility lines, preview per deployment; A2 starts B with `npm run dev`. | The demo above runs locally end to end, except real AWS. |
+| 7. The cloud | Deploy world 1 to the client's AWS in `ca-central-1` with prod rules (`docs/architecture/environments.md`); prove A's deploy; run B against the test AWS account and a DevStack VM. | The demo runs in the cloud. |
+| 8. More targets | Patrii when it opens (configuration on the OpenStack connector), a second Terraform provider, TierHive when it has an API. | Each new target passes the contract tests and one real deploy. |
+| Later | Blocks across clouds in one diagram; B1; retiring A's own AWS flow. | Decided when the stages above are done. |
 
 ## Questions that block or shape the plan
 
-The open questions, each with its default, are kept in one list: `.claude/findings/NOW.md` § Open questions. Questions 1 to 10 there shape this design; for Patrii, also the five questions at the end of `docs/research/patricloud/2026-10-26-patricloud-research.md`.
+The open questions, each with its default, are kept in one list: `.claude/findings/NOW.md` § Open questions. Most of them shape this design; for Patrii, also the five questions at the end of `docs/research/patricloud/2026-10-26-patricloud-research.md`.

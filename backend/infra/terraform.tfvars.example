@@ -1,8 +1,8 @@
 # Inputs for the platform Terraform, one copy per cloud environment (docs/architecture/environments.md).
-# Copy to dev.tfvars or prod.tfvars. Those copies hold secrets and are ignored by git. Never commit them.
+# Copy to prod.tfvars (the one cloud environment, ADR-015). Those copies hold secrets and are ignored by git. Never commit them.
 # Local development does not use this file: backend/devserver generates what it needs.
 
-aws_region                  = "us-west-2"                # the region this environment runs in
+aws_region                  = "ca-central-1"             # the region this environment runs in
 jwt_secret                  = "REPLACE_WITH_A_LONG_RANDOM_STRING" # openssl rand -hex 32; different per environment
 psql_connection_string      = "postgres://USER:PASSWORD@HOST:5432/postgres" # this environment's Supabase or Postgres
 cloudformation_template_url = "https://BUCKET.s3.us-west-2.amazonaws.com/templates/cloudformation/client_side_terraform_deployer_role.yaml"
