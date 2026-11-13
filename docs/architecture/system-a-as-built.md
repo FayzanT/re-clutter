@@ -51,7 +51,7 @@ The capstone's version is tagged `capstone-original`. This is what is different 
 
 | Area | Capstone delivered | Now |
 | --- | --- | --- |
-| Where it runs | only in AWS; that account is gone | locally with `npm run dev` (A2); dev and prod not set up yet |
+| Where it runs | only in AWS; that account is gone | locally with `npm run dev` (A2); the cloud environment is not set up yet |
 | Reading generated Terraform | not in the app, only through the AWS console | **Preview Terraform** in the editor, for every user (ADR-012) |
 | Generator | writes `.tf` files | also records `status.json`, and removes a stale `outputs.tf` |
 | API | 31 routes | 32: adds `GET /terraform-engine/files` |

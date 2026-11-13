@@ -1,35 +1,40 @@
 # NOW
 
-Updated 2026-10-30.
+Updated 2026-11-13.
 
 ## Goal
 
-First prove System A: test it locally through A2 (`backend/devserver`), fix what is unsafe, then run it in a dev cloud. Then build System B, the adapter layer, beside it, so a diagram can deploy to other targets through connectors: General first, then PatriCloud and TierHive. C is A + A2 + B (ADR-011). Design: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-012. Environments: `docs/architecture/environments.md`.
+Clutter becomes one hosted product (B0) where users link their own clouds (world 2.1) and deploy one diagram to any of them: AWS through A today, and every cloud through B's connectors, OpenStack first (ADR-013, ADR-014). Make A safe first, build B beside it, then run it all in one cloud environment (ADR-015). C is A + A2 + B (ADR-011). Design and build order: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-016. Environments: `docs/architecture/environments.md`.
 
 ## Where it stands
 
-- Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The harness, docs, design, devserver and Terraform preview are in this branch.
-- The design now follows the team's plan (`docs/architecture/system-b-team-plan/`): Option 1, build B next to A and touch A only at named seams (ADR-006); B1 first, B2 later (ADR-007); the General connector first (ADR-008).
+- Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The fork's `main` has the harness, docs, devserver, Terraform preview and deploy command; the client's `main` stops at PR #96 and is 5 commits behind.
+- The design follows the team's plan (`docs/architecture/system-b-team-plan/`), revised 2026-11-13: Option 1 (ADR-006); B0 first (ADR-007); users' own accounts only (ADR-013); one diagram with many deployments, and an AWS connector in B that reuses A's templates (ADR-014); the General connector first, with OpenStack on DevStack as its first provider (ADR-008, ADR-014). Live collaboration is another team's work. Patrii is low priority until it opens its API.
 - Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both connectors are blocked; General is not.
 - Every local check was run on 2026-10-30 (results in `backend/README.md` and `frontend/clutter/README.md`). Go build and vet, frontend types, lint and build, Terraform validate and the database schema pass. Go tests fail in the 2 known packages, and `terraform fmt` fails on 7 files.
-- The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. Smoke test of all 32 routes: 31 pass, 3 need AWS, 3 expected, 0 fail. Deploy and running Ansible need our own AWS account (`docs/architecture/environments.md`, ADR-010).
+- The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. Smoke test of all 32 routes: 31 pass, 3 need AWS, 3 expected, 0 fail. Deploy and running Ansible need the client's AWS account (`docs/architecture/environments.md`, ADR-015).
 - All 24 `upstream` branches are merged into `main` or stale, except `dev` (CI `actions/checkout` v6) and `database-seed` (an abandoned DynamoDB seed).
-- Waiting on: an AWS sandbox (question 11), the client's answers on scope (questions 1 to 6 and 10), and contacts at Patrii and TierHive.
+- Waiting on the client: the list in § What we need from the client. Nothing in stages 0 to 6 waits on it.
 
 ## Next
 
 ### The order
 
-| Step | Work | Touches A? | Status |
-| --- | --- | --- | --- |
-| 0 | tag `capstone-original` (A as delivered) | no | done |
-| 1 | Terraform preview in the editor, as a product feature (ADR-012) | yes, an agreed exception | done, tested locally |
-| 2 | deploy from a laptop: A2 answers A's ECS call by running the deployer in Docker, against a real AWS account | no | open; needs an AWS sandbox to prove |
-| 3 | phase 0 security and bug fixes (below) | yes, as ADR-006 allows | open |
-| 4 | dev environment on AWS, Supabase and Google (`docs/architecture/environments.md`), with the hard-coded items removed and `npm run deploy` proven for the first time | configuration and small A changes | open; needs accounts |
-| 5 | System B, phase 1 | no | after step 4 |
+The stages and what "done" means for each are in `docs/architecture/system-b-adapter-layer.md` § Build order. Status:
 
-Done for A means one diagram with a Lambda and an S3 bucket deploys to dev, shows up in AWS, and destroys cleanly.
+| Stage | Status |
+| --- | --- |
+| 0. Housekeeping: client repo up to date, decisions recorded, questions sent | decisions recorded (ADR-013 to ADR-016); pull request and client message open |
+| 1. Make A safe (phase 0, below) | open |
+| 2. A test cloud on the laptop (DevStack) | open |
+| 3. B's core | open |
+| 4. The General connector, OpenStack first | open |
+| 5. The AWS connector | open |
+| 6. The frontend, and A2 starting B | open |
+| 7. The cloud | open; needs the client's accounts |
+| 8. More targets | later |
+
+Done for A means one diagram with a Lambda and an S3 bucket deploys to the test AWS account from the cloud, shows up in AWS, and destroys cleanly. Done for the plan means the demo in `docs/architecture/system-b-adapter-layer.md` § What the user sees runs in the cloud.
 
 ### How the team uses this file
 
@@ -56,7 +61,7 @@ Do these before phase 1, in any order unless a row says otherwise. Items 1 to 6 
 | 8 | Verify a role ARN with STS before storing it in `submit-role-arn` | a handler test with a stubbed STS client rejects an ARN it cannot assume; confirmed in AWS later | free | open |
 | 9 | A lock on customer Terraform state (an S3 backend with locking instead of the synced local file) | the deployer's generated backend block has locking; two parallel runs on one diagram are refused, confirmed in AWS later | free | open |
 
-Then phase 1: the connector interface, the B skeleton (run as B0) and the General connector (`docs/architecture/system-b-adapter-layer.md` § Build order).
+Then stages 2 to 6 (`docs/architecture/system-b-adapter-layer.md` § Build order).
 
 ## Open defects in A
 
@@ -112,24 +117,34 @@ Needed before real users, and not yet designed. Decide each before prod, with th
 - **Template changes:** a template or provider version change can alter what an already-deployed diagram does on its next deploy.
 - **Audit log:** who deployed or destroyed what, and when.
 
+## What we need from the client
+
+One message, in one go. Defaults in brackets.
+
+| Need | Why |
+| --- | --- |
+| An AWS account for Clutter, owned by the client, with team access through user logins [the client owns it] | hosts world 1 in `ca-central-1` (ADR-015) |
+| A second AWS account acting as a user, ideally in the same AWS organization [yes] | proves a real cross-account deploy |
+| Who pays, a budget cap and a billing alert [$100 CAD for the project] | cloud costs (roadmap Table 11.1) |
+| A Supabase project, or permission to use AWS's own Postgres [Supabase] | the database |
+| A Google OAuth client | sign-in |
+| A domain and DNS access | the site address, and the Google client's allowed address |
+| Where the frontend is hosted [an AWS service in the same account] | the capstone only built a Docker image |
+| Scope sign-off: DevStack as the fallback while Patrii has no public API, and the roadmap must-haves | the roadmap's section 6.3 |
+| Branch protection on the client's `main` (pull requests and the Checks workflow required) [yes] | nothing stops a direct push today |
+| A Patrii contact, when the client has one [later] | Patrii's OpenStack endpoints or Terraform provider |
+
 ## Open questions
 
-Each has a default we act on until someone answers, and the person or source that settles it.
+Each has a default we act on until someone answers, and the person or source that settles it. Answered 2026-11-13 and recorded: B0 first (ADR-007), one diagram with many deployments (ADR-014, replaces "one cloud per diagram"), one cloud environment in `ca-central-1` (ADR-015), where credentials are stored (ADR-016), and that the client owns the accounts (§ What we need from the client).
 
 | # | Question | Until answered, we | Settled by |
 | --- | --- | --- | --- |
-| 1 | What does General (custom) cover? | build it as Terraform with a named provider, plus existing servers over SSH | the team and the client |
-| 2 | Which providers does General start with? | plan for DigitalOcean (simple, well-known provider) and OpenStack (what Patrii runs on) | the team and the client |
+| 1 | What does General (custom) cover? | Terraform with a named provider, plus existing servers over SSH | the team and the client |
+| 2 | Which providers does General start with after OpenStack? | DigitalOcean | the team and the client |
 | 3 | Why TierHive, and does the client know KernelKeepers LTD? | treat TierHive as a later connector; reach its servers through General's SSH mode | the client |
-| 4 | Who contacts Patrii and TierHive, and can we join Patrii's partner program for a sandbox? | assume the client makes contact; Patrii and TierHive connectors stay blocked | the client; then the five questions in `docs/research/patricloud/2026-10-26-patricloud-research.md` and the questions in the TierHive research go to those companies |
-| 5 | Is Patrii a place to build, a place to host Clutter, or both? | a place to build | the client (data residency needs would change it) |
-| 6 | B0, B1 or B2 first? | B0 (ADR-007) | the client; a customer asking to self-host moves B1 up |
-| 7 | Does B run as a container or as Lambdas like A? | a container, so B1 stays possible | the team, when phase 1 starts |
-| 8 | Where are a user's cloud credentials stored? | an encrypted secret store (AWS Secrets Manager for B0), with only a reference in Postgres | the team, when phase 1 starts |
-| 9 | Where does Terraform state go in B? | in the user's storage when their target has any, otherwise ours, encrypted and locked | the team, when phase 1 starts |
-| 10 | Does one diagram target exactly one cloud? | yes | the client |
-| 11 | Is there an AWS sandbox for dev, and who owns and pays for it? | build and test everything that runs locally; dev waits | the client |
-| 12 | Does the client own the dev and prod accounts (AWS, Supabase, Google, domain) and give the team access? | yes; the team sets them up inside the client's accounts | the client |
-| 13 | Is `main` on the client's repo protected (pull requests and the Checks workflow required)? | assume not, and review pull requests by hand | the client's repo owner |
-| 14 | Should CI move to `actions/checkout` v6, as the client's `dev` branch does? | yes, the next time CI changes | the team |
-| 15 | Are ADR-001 to ADR-011 accepted? They are all still "proposed". | act on them as written | the team, in one review; the client for scope and hosting (ADR-004, ADR-007, ADR-010) |
+| 4 | Is Patrii a place to build, a place to host Clutter, or both? | a place to build | the client (data residency needs would change it) |
+| 5 | Where does Terraform state go in B? | in the user's storage when their target has any, otherwise ours, encrypted and locked | the team, in stage 3 |
+| 6 | Does the other team's live collaboration need anything from the diagram document or B API? | keep the document's shape stable and tell them before changing it | the other team |
+| 7 | Should CI move to `actions/checkout` v6, as the client's `dev` branch does? | yes, the next time CI changes | the team |
+| 8 | Are ADR-001 to ADR-016 accepted? Only ADR-012 is. | act on them as written | the team, in one review; the client for scope and hosting (ADR-004, ADR-007, ADR-013, ADR-015) |
