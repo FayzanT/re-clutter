@@ -4,15 +4,15 @@ Updated 2026-11-13.
 
 ## Goal
 
-Clutter becomes one hosted product (B0) where users link their own clouds (world 2.1) and deploy one diagram to any of them: AWS through A today, and every cloud through B's connectors, OpenStack first (ADR-013, ADR-014). Make A safe first, build B beside it, then run it all in one cloud environment (ADR-015). C is A + A2 + B (ADR-011). Design and build order: `docs/architecture/system-b-adapter-layer.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-016. Environments: `docs/architecture/environments.md`.
+Clutter becomes one hosted product (B0) where users link their own clouds (world 2.1) and deploy one diagram to any of them: AWS through A today, and every cloud through B's connectors, OpenStack first (ADR-013, ADR-014). Make A safe first, build B beside it, then run it all in one cloud environment (ADR-015). C is A + A2 + B (ADR-011). Design: `docs/architecture/system-b-adapter-layer.md`. Build order: `docs/architecture/implementation-plan.md`. What exists: `docs/architecture/system-a-as-built.md`. Decisions: ADR-001 to ADR-017. Environments: `docs/architecture/environments.md`.
 
 ## Where it stands
 
 - Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The fork's `main` has the harness, docs, devserver, Terraform preview and deploy command; the client's `main` stops at PR #96 and is 5 commits behind.
-- The design follows the team's plan (`docs/architecture/system-b-team-plan/`), revised 2026-11-13: Option 1 (ADR-006); B0 first (ADR-007); users' own accounts only (ADR-013); one diagram with many deployments, and an AWS connector in B that reuses A's templates (ADR-014); the General connector first, with OpenStack on DevStack as its first provider (ADR-008, ADR-014). Live collaboration is another team's work. Patrii is low priority until it opens its API.
-- Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both connectors are blocked; General is not.
-- Every local check was run on 2026-10-30 (results in `backend/README.md` and `frontend/clutter/README.md`). Go build and vet, frontend types, lint and build, Terraform validate and the database schema pass. Go tests fail in the 2 known packages, and `terraform fmt` fails on 7 files.
-- The capstone AWS deployment is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. Smoke test of all 32 routes: 31 pass, 3 need AWS, 3 expected, 0 fail. Deploy and running Ansible need the client's AWS account (`docs/architecture/environments.md`, ADR-015).
+- The design follows the team's plan (`docs/architecture/system-b-team-plan/`), revised 2026-11-13: Option 1 (ADR-006); B0 first (ADR-007); users' own accounts only (ADR-013); one diagram with many deployments, and an AWS connector in B that reuses A's templates (ADR-014); General first, a family of connectors with OpenStack (tested on DevStack) as its first provider (ADR-008, ADR-014). Live collaboration is another team's work. Patrii is low priority until it opens its API.
+- Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both wait for an API; General, which is how most new clouds arrive (`system-b-adapter-layer.md` § General), does not.
+- Local check results, with their dates, are owned by `backend/README.md` and `frontend/clutter/README.md`: everything passes except the 2 known Go test packages and `terraform fmt` on 7 files.
+- The capstone's AWS hosting is gone (the API host is NXDOMAIN). A now runs locally through `backend/devserver` (ADR-009), including a local S3 and a stand-in for the Supabase webhook: saving a diagram generates real Terraform, and all five resource types validate. The smoke test covers all 32 routes at 0 fail (counts in `backend/devserver/README.md`). Deploy and running Ansible need the client's AWS account (`docs/architecture/environments.md`, ADR-015).
 - All 24 `upstream` branches are merged into `main` or stale, except `dev` (CI `actions/checkout` v6) and `database-seed` (an abandoned DynamoDB seed).
 - Waiting on the client: the list in § What we need from the client. Nothing in stages 0 to 6 waits on it.
 
@@ -20,21 +20,21 @@ Clutter becomes one hosted product (B0) where users link their own clouds (world
 
 ### The order
 
-The stages and what "done" means for each are in `docs/architecture/system-b-adapter-layer.md` § Build order. Status:
+The stages, their work, tests and "done when" are in `docs/architecture/implementation-plan.md`. Status:
 
 | Stage | Status |
 | --- | --- |
-| 0. Housekeeping: client repo up to date, decisions recorded, questions sent | decisions recorded (ADR-013 to ADR-016); pull request and client message open |
+| 0. Housekeeping: client repo up to date, decisions recorded, questions sent | decisions recorded (ADR-013 to ADR-017); design checked on 2026-11-13 (independent review, AWS template spike, DevStack test); pull request and client message open |
 | 1. Make A safe (phase 0, below) | open |
-| 2. A test cloud on the laptop (DevStack) | open |
+| 2. A test cloud on the laptop (DevStack) | proven on one laptop (2026-11-13); a setup guide for the team comes with stage 4 |
 | 3. B's core | open |
-| 4. The General connector, OpenStack first | open |
+| 4. General's OpenStack connector | open |
 | 5. The AWS connector | open |
-| 6. The frontend, and A2 starting B | open |
+| 6. The frontend and the whole flow | open |
 | 7. The cloud | open; needs the client's accounts |
 | 8. More targets | later |
 
-Done for A means one diagram with a Lambda and an S3 bucket deploys to the test AWS account from the cloud, shows up in AWS, and destroys cleanly. Done for the plan means the demo in `docs/architecture/system-b-adapter-layer.md` § What the user sees runs in the cloud.
+Done for A means the 12-step test in `docs/architecture/environments.md` passes in the cloud. Done for the plan means the demo in `docs/architecture/system-b-adapter-layer.md` § What the user sees runs in the cloud.
 
 ### How the team uses this file
 
@@ -44,7 +44,7 @@ Done for A means one diagram with a Lambda and an S3 bucket deploys to the test 
 
 ### Phase 0: make the seams safe
 
-Do these before phase 1, in any order unless a row says otherwise. Items 1 to 6 can be finished and checked locally; items 7 to 9 change A's AWS behaviour and are finished in code locally, then confirmed on the first AWS deploy.
+These are stage 1, done before B's stages 3 to 6, in the order `docs/architecture/implementation-plan.md` § Stage 1 sets. Items 1 to 6 can be finished and checked locally; items 7 to 10 change A's AWS behaviour and are finished in code locally, then confirmed on the first AWS deploy.
 
 | # | Task | Done when | Owner | Status |
 | --- | --- | --- | --- | --- |
@@ -60,8 +60,9 @@ Do these before phase 1, in any order unless a row says otherwise. Items 1 to 6 
 | 7 | Narrow the customer role (`client_side_terraform_deployer_role.yaml`) to the actions the templates use | the policy lists named actions, no `*` on `iam`, `s3`, `ec2` or `ssm`; confirmed by a deploy in AWS later | free | open |
 | 8 | Verify a role ARN with STS before storing it in `submit-role-arn` | a handler test with a stubbed STS client rejects an ARN it cannot assume; confirmed in AWS later | free | open |
 | 9 | A lock on customer Terraform state (an S3 backend with locking instead of the synced local file) | the deployer's generated backend block has locking; two parallel runs on one diagram are refused, confirmed in AWS later | free | open |
+| 10 | A's runner: stop handing it `PSQL_CONNECTION_STRING` (report status through the API instead), and start one task per run with only that run's role and external id | the runner's task definition and overrides contain no database string; a test shows one run cannot read another's credentials; confirmed in AWS later | free | open |
 
-Then stages 2 to 6 (`docs/architecture/system-b-adapter-layer.md` § Build order).
+Then stages 2 to 6 (`docs/architecture/implementation-plan.md`).
 
 ## Open defects in A
 
@@ -74,7 +75,7 @@ Verified at the code by the lead:
 - Lambda runtimes: config panel sends `nodejs24.x`, code upload accepts `nodejs24`. Node code uploads fail.
 - Customer state is a local file synced to S3 without a lock; generated code and state sit in `us-west-2` for every customer.
 - ECR repos are immutable but images are pushed as `:latest`; the second push fails.
-- `build_linux.sh` omits `terraform-engine/code-upload` and `terraform-engine/logs/recent-activity` (`build.sh` lists all 33).
+- `build_linux.sh` omits `terraform-engine/code-upload` and `terraform-engine/logs/recent-activity` (`build.sh` lists all 34).
 - The frontend members API is an in-memory mock (`MOCK_MEMBERS`); no invite route exists.
 - The frontend `RunAction` type offers `plan`; the backend accepts only `apply` and `destroy`.
 - Nothing in the repo calls `POST /terraform-engine`; it depends on a Supabase webhook configured outside the repo.
@@ -100,6 +101,8 @@ Found or confirmed by the 2026-10-30 code sweep (a reader lane; the first four r
 - Found by running A locally (2026-10-30): `terraform-command-runner` writes a `RUNNING` deploy-log row before it starts the ECS task, so a failed start leaves a deploy that shows as running forever. `ansible/submit-job` reports every S3 error as 404 "playbook not found". `terraform-engine` returns 400 "completed with errors" when its templates cannot load, so a platform failure looks like a user error. The login page's 403 branch for expired tokens can never run in a browser, because API Gateway's own 403 has no CORS headers. `code-upload` puts `lambda_resource_name` into the S3 key unvalidated. Confirmed at run time: `POST /terraform-engine` runs with no token.
 - Found by generating Terraform locally (2026-11-04): API Gateway with CORS off renders invalid Terraform (`depends_on` names the `_options` resources outside the `{{if .EnableCORS}}` block), and the canvas can send that. The generator's response gives an `s3_path` without the `terraform/` folder. Real Google sign-in works locally only through the capstone's client id and the unset audience check.
 - Found building the Terraform preview (2026-11-04): `GetOutputs` in all five generators returns empty on a template failure, so a run reports success with outputs missing, and if every one fails `outputs.tf` is deleted (the fix changes the `ResourceGenerator` interface). The 400 and 500 bodies of `POST /terraform-engine` still carry paths and SDK text, on a route with no authorizer. The panel's "save to refresh" needs a change first, because Save is disabled on a clean diagram. Diagrams written through the API load as unsaved, so Preview stays disabled until Save. The status tests in `terraform-engine/create` pass but CI skips that package until phase 0 item 6.
+- Found by the 2026-11-13 template spike (rendered from A's template files and run through `terraform validate`): an API Gateway to Lambda edge never routes traffic, because the API Gateway template renders no method or integration for the target Lambda and the IAM step only grants the invoke permission; that permission uses a fixed `statement_id`, so AWS rejects a second API on the same function at apply time; A's Lambdas get no basic execution role, so they cannot write logs; a "reads" edge grants Put and Delete as well; the EC2 template pins an x86 image, so an ARM instance type fails; the IAM step's API Gateway case refers to `aws_apigatewayv2_api`, which no template renders.
+- Found by the 2026-11-13 design review: A's runner can assume every customer's role (`AllowClutterToDeployTerraformRole-*` in any account) and is handed the database string, which holds every external id, so one injected command reaches every tenant (phase 0 item 10).
 - Minor: the recent-activity Lambda's log permission points at another log group; the terraform branch of `ansible/run-task` is dead; `application-tables.sql` fails on a re-run (`CREATE TYPE`).
 
 Closed: the audit suspected AWS keys were committed in `ac90930`. That commit added `.vscode/.bashrc` and a `.gitignore` entry only; no AWS key pattern appears in the tree or any commit.
@@ -125,12 +128,12 @@ One message, in one go. Defaults in brackets.
 | --- | --- |
 | An AWS account for Clutter, owned by the client, with team access through user logins [the client owns it] | hosts world 1 in `ca-central-1` (ADR-015) |
 | A second AWS account acting as a user, ideally in the same AWS organization [yes] | proves a real cross-account deploy |
-| Who pays, a budget cap and a billing alert [$100 CAD for the project] | cloud costs (roadmap Table 11.1) |
+| Who pays, a budget cap and a billing alert [$100 CAD for the project] | cloud costs (the team's ENEL 500 Design Roadmap, kept outside this repo, Table 11.1) |
 | A Supabase project, or permission to use AWS's own Postgres [Supabase] | the database |
 | A Google OAuth client | sign-in |
 | A domain and DNS access | the site address, and the Google client's allowed address |
 | Where the frontend is hosted [an AWS service in the same account] | the capstone only built a Docker image |
-| Scope sign-off: DevStack as the fallback while Patrii has no public API, and the roadmap must-haves | the roadmap's section 6.3 |
+| Scope sign-off: DevStack as the fallback while Patrii has no public API, and the Design Roadmap's must-have features | the Design Roadmap, section 6.3 |
 | Branch protection on the client's `main` (pull requests and the Checks workflow required) [yes] | nothing stops a direct push today |
 | A Patrii contact, when the client has one [later] | Patrii's OpenStack endpoints or Terraform provider |
 
@@ -140,11 +143,11 @@ Each has a default we act on until someone answers, and the person or source tha
 
 | # | Question | Until answered, we | Settled by |
 | --- | --- | --- | --- |
-| 1 | What does General (custom) cover? | Terraform with a named provider, plus existing servers over SSH | the team and the client |
+| 1 | What does General (custom) cover? | a family: one connector per approved Terraform provider, plus existing servers over SSH (ADR-008) | the team and the client |
 | 2 | Which providers does General start with after OpenStack? | DigitalOcean | the team and the client |
-| 3 | Why TierHive, and does the client know KernelKeepers LTD? | treat TierHive as a later connector; reach its servers through General's SSH mode | the client |
+| 3 | Why TierHive, and does the client know KernelKeepers LTD? | treat TierHive as later: a General connector if it ships a Terraform provider, its own otherwise; its hand-made servers through General's SSH mode once that exists | the client |
 | 4 | Is Patrii a place to build, a place to host Clutter, or both? | a place to build | the client (data residency needs would change it) |
 | 5 | Where does Terraform state go in B? | in the user's storage when their target has any, otherwise ours, encrypted and locked | the team, in stage 3 |
 | 6 | Does the other team's live collaboration need anything from the diagram document or B API? | keep the document's shape stable and tell them before changing it | the other team |
 | 7 | Should CI move to `actions/checkout` v6, as the client's `dev` branch does? | yes, the next time CI changes | the team |
-| 8 | Are ADR-001 to ADR-016 accepted? Only ADR-012 is. | act on them as written | the team, in one review; the client for scope and hosting (ADR-004, ADR-007, ADR-013, ADR-015) |
+| 8 | Are ADR-001 to ADR-017 accepted? Only ADR-012 is. | act on them as written | the team, in one review; the client for scope and hosting (ADR-004, ADR-007, ADR-013, ADR-015) |

@@ -8,7 +8,7 @@ Clutter runs in two places, and each has one job (ADR-015). Only local exists to
 | **Status** | works | not set up |
 | **Who uses it** | each developer alone | the team, the client, and later users |
 | **Costs money** | no | yes |
-| **Frontend** | `npm run dev` on port 3100 | hosted, built with the cloud API's address |
+| **Frontend** | `npm run dev` on port 3100, opened through A2's front door on port 3000 | hosted, built with the cloud API's address |
 | **Backend** | the real Lambdas, run by `backend/devserver` | real Lambdas behind API Gateway, and B's container on Fargate, in the client's AWS account in `ca-central-1` |
 | **Database** | Postgres in Docker | a Supabase project |
 | **File storage (S3)** | the devserver's local S3, on disk | real S3 |
@@ -27,7 +27,7 @@ The cloud does not exist yet, so nothing has been tested there. Its column says 
 | Organizations, projects, diagrams | works | works |
 | Canvas: drag, connect, configure, save | works | works |
 | Link an AWS account | fake account only | our test account, then real users' accounts |
-| Generate Terraform on save | works (A2 stands in for the webhook) | works, once the webhook is set up |
+| Generate Terraform on save | works (A2 stands in for the webhook) | works, once phase 0 item 1's save-then-generate step replaces the webhook |
 | Read and download Terraform in the editor | works | works, once generation runs |
 | Upload Lambda code or a playbook | stored on disk | real S3 |
 | Deploy and destroy | does not run | the first real test happens here |
@@ -47,7 +47,7 @@ The cloud does not exist yet, so nothing has been tested there. Its column says 
 
 **Local:** nothing beyond the install list in the root `README.md`. No env file, no accounts.
 
-**Cloud.** Clutter in the cloud is a hosted service (SaaS): one copy, run for everyone. The accounts that run Clutter itself (world 1, `system-a-as-built.md` § The two worlds) belong to the client, who owns the product and pays for running it, and the team gets access to deploy. Users bring a Google sign-in and their own cloud accounts (world 2), which they pay for. Set up once phase 0 items 1 to 6 are done:
+**Cloud.** Clutter in the cloud is a hosted service (SaaS): one copy, run for everyone. The accounts that run Clutter itself (world 1, `system-b-adapter-layer.md` § Names) belong to the client, who owns the product and pays for running it, and the team gets access to deploy. Users bring a Google sign-in and their own cloud accounts (world 2), which they pay for. Set up once stages 1 to 6 are done (`implementation-plan.md`):
 
 | Thing | Owned by | Goes into |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ The cloud does not exist yet, so nothing has been tested there. Its column says 
 | --- | --- | --- |
 | A second AWS account, acting as a user | the client or the team; easiest as a second account in the same AWS organization | proves a real cross-account deploy, as a user's account would be |
 | An OpenStack | the team | locally DevStack on a laptop; for the cloud, a DevStack virtual machine in the test account, switched on only for demos, until Patrii opens |
-| A DigitalOcean account (optional) | the team | a second Terraform provider for the General connector |
+| A DigitalOcean account (optional) | the team | the second General connector (`general-digitalocean`) |
 
 ## Setting up the cloud
 
@@ -73,24 +73,24 @@ The capstone deployment is gone. The API host baked into `frontend/Dockerfile.fr
 
 `npm run deploy:plan -- prod` shows what would change, and `npm run deploy -- prod` applies it. They stop on missing or example config, on the wrong AWS account, and on anything but a clean `main`; they ask you to type `prod` before applying, and there is no tear-down command for it. The command also accepts `dev`, which is unused until a test environment exists. They have not been run against real AWS yet; `backend/infra/test-deploy.sh` tests only their checks.
 
-These steps run once, after the changes in the next section. None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
+These steps run once, after stage 1 has made the changes in the next section; each step says what it looks like then, and what stands in the way today. None of this has been done. What is missing is accounts and secrets, not tools. Every step creates real resources and costs money, so a person runs it, not a session.
 
-1. **An AWS account for the platform.** Bootstrap remote state with `backend/tfstate-infra`, then point `backend/infra/backend.tf` at the new bucket and lock table.
+1. **An AWS account for the platform.** Bootstrap remote state with `backend/tfstate-infra`, then name the new bucket and lock table in `prod.backend.hcl`, which `terraform init` reads (today `backend/infra/backend.tf` hard-codes the capstone's bucket).
 2. **Postgres.** A Supabase project (or any Postgres with the `anon`, `authenticated` and `service_role` roles). Load `backend/storage-sql/application-tables.sql`, then `seed-resources.sql`. Turn on row-level security or turn off the Supabase Data API first.
-3. **A Google OAuth client** for sign-in. Replace the hard-coded client id in the frontend, and add `GOOGLE_CLIENT_ID` to the log-in Lambda's environment in `backend/infra/main.tf` (today it is never set, so log-in accepts tokens minted for any app).
+3. **A Google OAuth client** for sign-in, with the site's address allowed. Its id goes into the platform inputs and the frontend's configuration (today it is hard-coded in two frontend files, and `GOOGLE_CLIENT_ID` is never set, so log-in accepts tokens minted for any app).
 4. **Platform inputs** (`backend/infra/variables.tf`): `aws_region` (`ca-central-1`), `jwt_secret`, `psql_connection_string`, `cloudformation_template_url`, `clutter_account_id`, `frontend_url`, `ansible_runner_image_tag`. The capstone team shared their tfvars file on Discord. It is not in the repo and must not be.
 5. **Build the Lambdas** with `backend/api/build.sh` (it lists all 34). `build_linux.sh` omits two.
-6. **Build and push the runner images** (`backend/infra/modules/fargate/ecr-scripts/*/build-and-push.sh`). The ECR repos are immutable, but the images are tagged `:latest`, so the second push fails.
-7. **`npm run deploy -- prod`**, which also builds the Lambdas (step 5). The Terraform defines no API Gateway deployment or stage, so the API must also be published by hand.
-8. **The Supabase database webhook** that calls `POST /terraform-engine` when a diagram changes. It is configured in Supabase, not in this repo. Without it, saving a diagram never generates code.
-9. **The frontend** with `NEXT_PUBLIC_API_ENDPOINT` set to the new API stage URL.
+6. **Build and push the runner images** (`backend/infra/modules/fargate/ecr-scripts/*/build-and-push.sh`). They are tagged by version (today they are tagged `:latest` in immutable ECR repos, so the second push fails).
+7. **`npm run deploy -- prod`**, which also builds the Lambdas (step 5) and publishes the API through the stage and deployment the platform Terraform defines (today it defines none, so the API would have to be published by hand).
+8. **No Supabase webhook.** Saving a diagram generates code through stage 1's authenticated save-then-generate step (phase 0 item 1). Today generation runs only when a Supabase database webhook, configured in Supabase and not in this repo, calls `POST /terraform-engine`.
+9. **The frontend,** built with `NEXT_PUBLIC_API_ENDPOINT` set to the new API's address (today `frontend/Dockerfile.frontend` bakes in the capstone's address).
 10. **B's container,** once B exists: on Fargate in the same account, with its Secrets Manager access.
 
-Phase 0 (`.claude/findings/NOW.md`) comes before step 7 on any account reachable from the internet: today the generation endpoint needs no login.
+Stage 1 (phase 0 in `.claude/findings/NOW.md`) must be done before step 7 on any account reachable from the internet: today the generation endpoint needs no login.
 
 ## What must change before the cloud can exist
 
-These are A's files, so each is a seam or a decision (ADR-006). None is done yet.
+These are A's files, so each is a seam or a decision (ADR-006). Stage 1 makes them (`implementation-plan.md` § Stage 1). None is done yet.
 
 | Hard-coded today | Needed for the cloud |
 | --- | --- |
@@ -98,7 +98,7 @@ These are A's files, so each is a seam or a decision (ADR-006). None is done yet
 | The Google client id is in two frontend files | read from an environment variable |
 | `frontend/Dockerfile.frontend` bakes in the capstone's API address | pass it in at build time |
 | The API Gateway has no stage or deployment in Terraform | add them, so the environment has a URL without manual steps |
-| The Supabase webhook is set up by hand | a written step, or replaced by phase 0 item 1 |
+| The Supabase webhook is set up by hand | replaced by phase 0 item 1's save-then-generate step (stage 1) |
 | `GOOGLE_CLIENT_ID` is never set on the log-in Lambda | phase 0 item 4 |
 | Runner images are tagged `:latest` in immutable repositories | a version tag per build |
 | The generator's S3 region, and the platform's region defaults, are fixed to `us-west-2` | use the environment's region (`ca-central-1`) |
