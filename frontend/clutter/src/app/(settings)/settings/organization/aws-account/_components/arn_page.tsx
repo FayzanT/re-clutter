@@ -195,7 +195,7 @@ export default function ArnPage() {
       {!completeAccount && <AwsAccountHeader />}
 
       {status === "error" && error && (
-        <Alert className="border-red-500/30 bg-red-500/10 text-red-100">
+        <Alert className="border-red-500/30 bg-red-500/100/10 text-red-100">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Verification blocked</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -203,16 +203,16 @@ export default function ArnPage() {
       )}
 
       {status === "verified" && (
-        <Alert className="border-teal-500/30 bg-teal-500/10 text-teal-50">
-          <CheckCircle2 className="h-4 w-4 text-teal-300" />
+        <Alert className="border-primary/30 bg-primary/10 text-[var(--primary-text)]">
+          <CheckCircle2 className="h-4 w-4 text-[var(--primary-text)]" />
           <AlertTitle>ARN format validated</AlertTitle>
           <AlertDescription>The ARN format looks valid locally. You can submit it when ready.</AlertDescription>
         </Alert>
       )}
 
       {status === "submitted" && (
-        <Alert className="border-teal-500/30 bg-teal-500/10 text-teal-50">
-          <CheckCircle2 className="h-4 w-4 text-teal-300" />
+        <Alert className="border-primary/30 bg-primary/10 text-[var(--primary-text)]">
+          <CheckCircle2 className="h-4 w-4 text-[var(--primary-text)]" />
           <AlertTitle>Role ARN submitted</AlertTitle>
           <AlertDescription>The ARN was sent to the backend for this organization account link.</AlertDescription>
         </Alert>
@@ -233,7 +233,7 @@ export default function ArnPage() {
           />
         </div>
       ) : (
-        <Card className="rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl">
+        <Card className="rounded-2xl border border-border bg-card shadow-xl">
           <CardContent className="grid gap-6 px-6 py-6 lg:grid-cols-2">
             <div className="h-full">
               <AwsRoleSetupCard

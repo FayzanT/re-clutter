@@ -125,27 +125,27 @@ const getVariableError = (name: string, value: unknown, required: boolean) => {
 };
 
 const JOB_CARD_STYLES: Record<string, string> = {
-  QUEUED: "border-slate-700 bg-slate-900/60",
-  RUNNING: "border-amber-500/20 bg-amber-500/10",
-  SUCCESS: "border-emerald-500/20 bg-emerald-500/10",
-  FAILED: "border-red-500/20 bg-red-500/10",
-  CANCELLED: "border-slate-700 bg-slate-900/60",
+  QUEUED: "border-border bg-card",
+  RUNNING: "border-amber-500/20 bg-amber-500/100/10",
+  SUCCESS: "border-green-500/20 bg-green-500/100/10",
+  FAILED: "border-red-500/20 bg-red-500/100/10",
+  CANCELLED: "border-border bg-card",
 };
 
 const JOB_DOT_STYLES: Record<string, string> = {
   QUEUED: "bg-slate-400 animate-pulse",
   RUNNING: "bg-amber-400 animate-pulse",
-  SUCCESS: "bg-emerald-400",
+  SUCCESS: "bg-green-400",
   FAILED: "bg-red-400",
   CANCELLED: "bg-slate-500",
 };
 
 const JOB_TEXT_STYLES: Record<string, string> = {
-  QUEUED: "text-slate-200",
-  RUNNING: "text-amber-200",
-  SUCCESS: "text-emerald-200",
-  FAILED: "text-red-200",
-  CANCELLED: "text-slate-400",
+  QUEUED: "text-foreground",
+  RUNNING: "text-amber-700 dark:text-amber-300",
+  SUCCESS: "text-green-700 dark:text-green-300",
+  FAILED: "text-red-700 dark:text-red-300",
+  CANCELLED: "text-muted-foreground",
 };
 
 type FinishedJobSnapshot = {
@@ -557,41 +557,41 @@ export default function ConfigPanel({
   return (
     <aside
       className={[
-        "relative h-full shrink-0 border-l border-slate-800 bg-slate-950/70 backdrop-blur",
+        "relative h-full shrink-0 border-l border-border bg-card backdrop-blur",
         "transition-[width] duration-200",
         showContent ? "w-[380px]" : "w-[5px]",
       ].join(" ")}
     >
       {!showContent ? null : (
         <>
-          <div className="flex h-14 items-center justify-between gap-2 border-b border-slate-800 px-3">
+          <div className="flex h-14 items-center justify-between gap-2 border-b border-border px-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900">
-                <Settings className="h-4 w-4 text-slate-300" />
+              <div className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card">
+                <Settings className="h-4 w-4 text-foreground" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-slate-100">
+                <div className="truncate text-sm font-semibold text-foreground">
                   {resourceDef?.displayName ?? selectedNode!.data.label}
                 </div>
-                <div className="truncate text-[11px] text-slate-400">
+                <div className="truncate text-[11px] text-muted-foreground">
                   Configuration
                 </div>
               </div>
             </div>
             <button
               onClick={handleClose}
-              className="grid h-8 w-8 place-items-center rounded-md border border-slate-800 bg-slate-900 transition hover:bg-slate-800"
+              className="grid h-8 w-8 place-items-center rounded-md border border-border bg-card transition hover:bg-card"
               title="Deselect node"
               type="button"
             >
-              <X className="h-4 w-4 text-slate-300" />
+              <X className="h-4 w-4 text-foreground" />
             </button>
           </div>
 
           <div className="flex h-[calc(100%-3.5rem)] flex-col">
             <div className="flex-1 space-y-4 overflow-y-auto p-4">
-              <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-slate-800 bg-slate-950">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border bg-card">
                   <Image
                     src={selectedNode!.data.img as string}
                     alt=""
@@ -601,8 +601,8 @@ export default function ConfigPanel({
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs text-gray-400">Resource</div>
-                  <div className="truncate text-sm font-medium text-white">
+                  <div className="text-xs text-muted-foreground">Resource</div>
+                  <div className="truncate text-sm font-medium text-foreground">
                     {resourceDef?.displayName ?? selectedNode!.data.label}
                   </div>
                 </div>
@@ -610,7 +610,7 @@ export default function ConfigPanel({
 
               {resourceDef && visibleVariables.length > 0 && (
                 <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Configuration
                   </label>
                   <div className="space-y-3">
@@ -648,12 +648,12 @@ export default function ConfigPanel({
                       return (
                         <div
                           key={v.name}
-                          className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"
+                          className="rounded-xl border border-border bg-card p-3"
                         >
-                          <div className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                          <div className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-foreground">
                             <Label>{labelText}</Label>
                             {v.required ? (
-                              <span className="text-red-400">*</span>
+                              <span className="text-red-700 dark:text-red-300">*</span>
                             ) : null}
                           </div>
 
@@ -681,16 +681,16 @@ export default function ConfigPanel({
                                     className={[
                                       "flex h-10 items-center gap-2 rounded-lg border px-3 text-sm transition",
                                       checked
-                                        ? "border-teal-500/50 bg-teal-500/10 text-teal-100"
-                                        : "border-slate-700 bg-slate-950/70 text-slate-300 hover:bg-slate-900/80",
+                                        ? "border-primary/50 bg-primary/10 text-[var(--primary-text)]"
+                                        : "border-border bg-card text-foreground hover:bg-card",
                                     ].join(" ")}
                                   >
                                     <span
                                       className={[
                                         "grid h-4 w-4 place-items-center rounded border text-[10px] font-bold",
                                         checked
-                                          ? "border-teal-400 bg-teal-500 text-slate-950"
-                                          : "border-slate-600 bg-slate-900 text-transparent",
+                                          ? "border-primary bg-primary text-primary-foreground"
+                                          : "border-border bg-card text-transparent",
                                       ].join(" ")}
                                     >
                                       ✓
@@ -723,8 +723,8 @@ export default function ConfigPanel({
                                   ? "flex h-10 w-full items-center justify-between rounded-lg border px-3 text-sm transition"
                                   : "inline-flex h-10 min-w-[148px] items-center justify-between rounded-lg border px-3 text-sm transition",
                                 fieldError
-                                  ? "border-red-500/50 bg-slate-950/70 text-red-100"
-                                  : "border-slate-700 bg-slate-950/70 text-white",
+                                  ? "border-red-500/50 bg-card text-red-100"
+                                  : "border-border bg-card text-foreground",
                               ].join(" ")}
                             >
                               <span className="font-medium">
@@ -734,8 +734,8 @@ export default function ConfigPanel({
                                 className={[
                                   "relative h-5 w-10 rounded-full transition-colors",
                                   Boolean(val)
-                                    ? "bg-teal-500/80"
-                                    : "bg-slate-700",
+                                    ? "bg-primary/80"
+                                    : "bg-muted",
                                 ].join(" ")}
                               >
                                 <span
@@ -757,10 +757,10 @@ export default function ConfigPanel({
                             >
                               <SelectTrigger
                                 className={[
-                                  "h-10 w-full rounded-lg bg-slate-950/70 text-sm text-white",
+                                  "h-10 w-full rounded-lg bg-card text-sm text-foreground",
                                   fieldError
                                     ? "border-red-500/50 focus:ring-red-500/40"
-                                    : "border-slate-700 focus:ring-teal-500/40",
+                                    : "border-border focus:ring-ring/40",
                                 ].join(" ")}
                               >
                                 <SelectValue
@@ -782,10 +782,10 @@ export default function ConfigPanel({
                                 v.name === "resource_name" ? 32 : undefined
                               }
                               className={[
-                                "h-10 rounded-lg bg-slate-950/70 text-sm text-white placeholder:text-slate-500",
+                                "h-10 rounded-lg bg-card text-sm text-foreground placeholder:text-muted-foreground",
                                 fieldError
                                   ? "border-red-500/50 focus-visible:ring-red-500/40"
-                                  : "border-slate-700 focus-visible:ring-teal-500/40",
+                                  : "border-border focus-visible:ring-ring/40",
                               ].join(" ")}
                               placeholder={placeholder || v.description}
                               value={val === undefined ? "" : String(val)}
@@ -812,13 +812,13 @@ export default function ConfigPanel({
                               (resourceDef?.label === "API Gateway" &&
                                 v.name === "http_methods")
                             ) && (
-                              <p className="mt-2 text-[11px] text-slate-500">
+                              <p className="mt-2 text-[11px] text-muted-foreground">
                                 {v.description}
                               </p>
                             )}
 
                           {fieldError && (
-                            <p className="mt-2 text-[11px] text-red-300">
+                            <p className="mt-2 text-[11px] text-red-700 dark:text-red-300">
                               {fieldError}
                             </p>
                           )}
@@ -831,23 +831,23 @@ export default function ConfigPanel({
 
               {isEc2Node && (
                 <div>
-                  <div className="mb-4 border-t border-slate-800/80" />
-                  <div className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <div className="mb-4 border-t border-border" />
+                  <div className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Ansible Playbook
                   </div>
-                  <div className="space-y-3 rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3">
-                    <div className="rounded-lg border border-cyan-900/40 bg-slate-950/75 px-3 py-2">
-                      <div className="text-xs text-gray-400">
+                  <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/20 p-3">
+                    <div className="rounded-lg border border-primary/40 bg-card px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
                         Bound EC2 container
                       </div>
-                      <div className="mt-1 text-sm font-medium text-white">
+                      <div className="mt-1 text-sm font-medium text-foreground">
                         {selectedNode!.data.label}
                       </div>
                     </div>
 
                     <label
                       htmlFor={ansibleUploadInputId}
-                      className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-800/60 bg-slate-950/65 px-3 py-3 text-sm font-medium text-cyan-50 transition hover:border-cyan-500/60 hover:bg-cyan-950/30"
+                      className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-primary/60 bg-card px-3 py-3 text-sm font-medium text-[var(--primary-text)] transition hover:border-primary/60 hover:bg-primary/30"
                     >
                       <Upload className="h-4 w-4" />
                       {selectedNode!.data.ansiblePlaybookName
@@ -868,16 +868,16 @@ export default function ConfigPanel({
                       }}
                     />
 
-                    <div className="rounded-lg border border-cyan-900/40 bg-slate-950/75 px-3 py-2">
-                      <div className="text-xs text-gray-400">Uploaded file</div>
-                      <div className="mt-1 text-sm font-medium text-white">
+                    <div className="rounded-lg border border-primary/40 bg-card px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Uploaded file</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">
                         {selectedNode!.data.ansiblePlaybookName ??
                           "No playbook uploaded yet"}
                       </div>
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Target EC2 instance ID
                       </label>
                       <input
@@ -887,17 +887,17 @@ export default function ConfigPanel({
                           handleTargetInstanceIdChange(e.target.value)
                         }
                         placeholder="i-0a05920cb52c4555d"
-                        className="w-full rounded-lg border border-cyan-900/40 bg-slate-950/75 px-3 py-2 text-sm text-white transition-colors focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        className="w-full rounded-lg border border-primary/40 bg-card px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
                       />
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-1 text-xs text-muted-foreground">
                         This instance ID is stored on this EC2 container node and
                         used as the Ansible target.
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-cyan-900/40 bg-slate-950/75 px-3 py-2">
-                      <div className="text-xs text-gray-400">Playbook ID</div>
-                      <div className="mt-1 break-all text-sm font-medium text-white">
+                    <div className="rounded-lg border border-primary/40 bg-card px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Playbook ID</div>
+                      <div className="mt-1 break-all text-sm font-medium text-foreground">
                         {selectedNode!.data.ansiblePlaybookId ??
                           "Not available until upload succeeds"}
                       </div>
@@ -918,8 +918,8 @@ export default function ConfigPanel({
                         "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
                         selectedNode!.data.ansiblePlaybookId &&
                         selectedNode!.data.ansibleTargetInstanceId?.trim()
-                          ? "border-teal-500/40 bg-teal-500/10 text-teal-100 hover:bg-teal-500/20"
-                          : "border-slate-800 bg-slate-950/80 text-slate-500",
+                          ? "border-primary/40 bg-primary/10 text-[var(--primary-text)] hover:bg-primary/20"
+                          : "border-border bg-card text-muted-foreground",
                       ].join(" ")}
                     >
                       <Play className="h-4 w-4" />
@@ -934,25 +934,25 @@ export default function ConfigPanel({
 
                     {(createPlaybookUploadUrl.isPending ||
                       uploadPlaybookFileToS3.isPending) && (
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-muted-foreground">
                         Uploading playbook…
                       </div>
                     )}
 
                     {submitAnsibleJob.isPending && (
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-muted-foreground">
                         Submitting Ansible job…
                       </div>
                     )}
 
                     {uploadMessage && (
-                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <div className="rounded-lg border border-green-500/20 bg-green-500/100/10 px-3 py-2 text-xs text-green-700 dark:text-green-300">
                         {uploadMessage}
                       </div>
                     )}
 
                     {uploadError && (
-                      <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                      <div className="rounded-lg border border-red-500/20 bg-red-500/100/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                         {uploadError}
                       </div>
                     )}
@@ -968,19 +968,19 @@ export default function ConfigPanel({
                           <span className={`font-semibold ${jobTextStyle}`}>
                             {jobData.status}
                           </span>
-                          <span className="text-slate-500 font-mono ml-auto">
+                          <span className="text-muted-foreground font-mono ml-auto">
                             {jobData.id.slice(0, 8)}
                           </span>
                         </div>
 
                         {jobData.error_message && (
-                          <p className="text-red-300 pl-4 leading-snug">
+                          <p className="text-red-700 dark:text-red-300 pl-4 leading-snug">
                             {jobData.error_message}
                           </p>
                         )}
 
                         {jobStatusQuery.isDone && jobData.updated_at && (
-                          <p className="text-slate-500 pl-4">
+                          <p className="text-muted-foreground pl-4">
                             Completed{" "}
                             {new Date(jobData.updated_at).toLocaleTimeString()}
                           </p>
@@ -989,54 +989,54 @@ export default function ConfigPanel({
                     )}
 
                     {latestFinishedJob && !activeJobId && (
-                      <details className="rounded-lg border border-slate-800 bg-slate-950/70">
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-slate-200">
+                      <details className="rounded-lg border border-border bg-card">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-foreground">
                           <span>Latest Ansible result</span>
                           <span
                             className={[
                               "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
                               latestFinishedJob.status === "SUCCESS"
-                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                                ? "border-green-500/30 bg-green-500/100/10 text-green-700 dark:text-green-300"
                                 : latestFinishedJob.status === "FAILED"
-                                ? "border-red-500/30 bg-red-500/10 text-red-200"
+                                ? "border-red-500/30 bg-red-500/100/10 text-red-700 dark:text-red-300"
                                 : latestFinishedJob.status === "RUNNING"
-                                ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                                : "border-slate-700 bg-slate-900 text-slate-300",
+                                ? "border-amber-500/30 bg-amber-500/100/10 text-amber-700 dark:text-amber-300"
+                                : "border-border bg-card text-foreground",
                             ].join(" ")}
                           >
                             {latestFinishedJob.status}
                           </span>
                         </summary>
 
-                        <div className="space-y-2 border-t border-slate-800 px-3 py-3 text-xs text-slate-300">
+                        <div className="space-y-2 border-t border-border px-3 py-3 text-xs text-foreground">
                           <div className="grid grid-cols-[90px_1fr] gap-2">
-                            <span className="text-slate-500">Status</span>
+                            <span className="text-muted-foreground">Status</span>
                             <span>{latestFinishedJob.status}</span>
                           </div>
 
                           <div className="grid grid-cols-[90px_1fr] gap-2">
-                            <span className="text-slate-500">Message</span>
+                            <span className="text-muted-foreground">Message</span>
                             <span>
                               {latestFinishedJob.error_message || "No message"}
                             </span>
                           </div>
 
                           <div className="grid grid-cols-[90px_1fr] gap-2">
-                            <span className="text-slate-500">Created</span>
+                            <span className="text-muted-foreground">Created</span>
                             <span>
                               {formatDateTime(latestFinishedJob.created_at)}
                             </span>
                           </div>
 
                           <div className="grid grid-cols-[90px_1fr] gap-2">
-                            <span className="text-slate-500">Updated</span>
+                            <span className="text-muted-foreground">Updated</span>
                             <span>
                               {formatDateTime(latestFinishedJob.updated_at)}
                             </span>
                           </div>
 
                           <div className="grid grid-cols-[90px_1fr] gap-2">
-                            <span className="text-slate-500">Job ID</span>
+                            <span className="text-muted-foreground">Job ID</span>
                             <span className="break-all font-mono text-[11px]">
                               {latestFinishedJob.id}
                             </span>
@@ -1046,7 +1046,7 @@ export default function ConfigPanel({
                     )}
 
                     {runError && (
-                      <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                      <div className="rounded-lg border border-red-500/20 bg-red-500/100/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                         {runError}
                       </div>
                     )}
@@ -1056,14 +1056,14 @@ export default function ConfigPanel({
 
               {isLambdaNode && (
                 <div>
-                  <div className="mb-4 border-t border-slate-800/80" />
-                  <div className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <div className="mb-4 border-t border-border" />
+                  <div className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Function Code
                   </div>
-                  <div className="space-y-3 rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3">
+                  <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/20 p-3">
                     <label
                       htmlFor={lambdaUploadInputId}
-                      className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-800/60 bg-slate-950/65 px-3 py-3 text-sm font-medium text-cyan-50 transition hover:border-cyan-500/60 hover:bg-cyan-950/30"
+                      className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-primary/60 bg-card px-3 py-3 text-sm font-medium text-[var(--primary-text)] transition hover:border-primary/60 hover:bg-primary/30"
                     >
                       <Upload className="h-4 w-4" />
                       {selectedNode!.data.lambdaCodeZipName
@@ -1084,9 +1084,9 @@ export default function ConfigPanel({
                       }}
                     />
 
-                    <div className="rounded-lg border border-cyan-900/40 bg-slate-950/75 px-3 py-2">
-                      <div className="text-xs text-gray-400">Uploaded file</div>
-                      <div className="mt-1 text-sm font-medium text-white">
+                    <div className="rounded-lg border border-primary/40 bg-card px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Uploaded file</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">
                         {selectedNode!.data.lambdaCodeZipName ??
                           "No file uploaded yet"}
                       </div>
@@ -1094,19 +1094,19 @@ export default function ConfigPanel({
 
                     {(createLambdaCodeUploadUrl.isPending ||
                       uploadLambdaCodeToS3.isPending) && (
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-muted-foreground">
                         Uploading function code…
                       </div>
                     )}
 
                     {lambdaUploadMessage && (
-                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <div className="rounded-lg border border-green-500/20 bg-green-500/100/10 px-3 py-2 text-xs text-green-700 dark:text-green-300">
                         {lambdaUploadMessage}
                       </div>
                     )}
 
                     {lambdaUploadError && (
-                      <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                      <div className="rounded-lg border border-red-500/20 bg-red-500/100/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                         {lambdaUploadError}
                       </div>
                     )}
@@ -1115,8 +1115,8 @@ export default function ConfigPanel({
               )}
             </div>
 
-            <div className="border-t border-slate-800 p-4">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            <div className="border-t border-border p-4">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Danger zone
               </div>
               <button
@@ -1124,8 +1124,8 @@ export default function ConfigPanel({
                 onClick={handleDeleteSelected}
                 className={[
                   "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
-                  "border-red-900/40 bg-red-950/40 text-red-200",
-                  "hover:bg-red-950/60 hover:border-red-800/60",
+                  "border-red-900/40 bg-red-500/10 text-red-700 dark:text-red-300",
+                  "hover:bg-red-500/10 hover:border-red-800/60",
                   "focus:outline-none focus:ring-1 focus:ring-red-500/60",
                 ].join(" ")}
                 title="Delete selected node"
@@ -1133,7 +1133,7 @@ export default function ConfigPanel({
                 <Trash2 className="h-4 w-4" />
                 Delete node
               </button>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-muted-foreground">
                 This will also remove any connections to this node.
               </p>
             </div>

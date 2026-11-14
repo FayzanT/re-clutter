@@ -55,48 +55,48 @@ export default function ManageForm({ initialValues, onSubmit, onDelete, isSaving
         {/* Name + ID (read-only) */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-200">
+            <label className="block text-sm font-medium text-foreground">
               Organization name
             </label>
             <input
               type="text"
               value={values.orgName}
               disabled
-              className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
+              className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Organization name cannot be changed.
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-200">
+            <label className="block text-sm font-medium text-foreground">
               Organization ID
             </label>
             <input
               type="text"
               value={values.orgId}
               disabled
-              className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
+              className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
-            <p className="text-xs text-slate-500">Used in APIs. This ID is fixed.</p>
+            <p className="text-xs text-muted-foreground">Used in APIs. This ID is fixed.</p>
           </div>
         </div>
 
         {/* Description (editable) */}
         <div className="grid gap-4">
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-200">
+            <label className="block text-sm font-medium text-foreground">
               Description
             </label>
             <textarea
               value={values.description}
               onChange={handleChange("description")}
               rows={4}
-              className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
               placeholder="Describe this organization…"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Optional. Helps members understand what this workspace is for.
             </p>
           </div>
@@ -107,22 +107,22 @@ export default function ManageForm({ initialValues, onSubmit, onDelete, isSaving
           <button
             type="submit"
             disabled={saveDisabled}
-            className="px-4 py-2 rounded-lg bg-teal-600 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-60 transition"
+            className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary disabled:opacity-60 transition"
           >
             {isSaving ? "Saving…" : "Save changes"}
           </button>
 
           {/* optional: tiny hint */}
           {!isDirty && (
-            <span className="text-xs text-slate-500">No changes to save</span>
+            <span className="text-xs text-muted-foreground">No changes to save</span>
           )}
         </div>
       </form>
 
       {/* Danger zone */}
-      <div className="mt-8 border-t border-slate-800 pt-4">
-        <h3 className="text-sm font-semibold text-red-400 mb-2">Danger zone</h3>
-        <p className="text-xs text-slate-400 mb-3 max-w-md">
+      <div className="mt-8 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">Danger zone</h3>
+        <p className="text-xs text-muted-foreground mb-3 max-w-md">
           Deleting this organization will remove access to all projects,
           workspaces, and runs. This action cannot be undone.
         </p>
@@ -130,7 +130,7 @@ export default function ManageForm({ initialValues, onSubmit, onDelete, isSaving
           type="button"
           onClick={handleDelete}
           disabled={!!isDeleting}
-          className="px-4 py-2 rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-60 transition"
+          className="px-4 py-2 rounded-lg bg-red-600 text-sm font-medium text-foreground hover:bg-red-500/100 disabled:opacity-60 transition"
         >
           {isDeleting ? "Deleting…" : "Delete organization"}
         </button>

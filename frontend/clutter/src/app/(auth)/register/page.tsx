@@ -146,22 +146,22 @@ export default function RegisterPage() {
 
   // ---------- UI ----------
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col pt-20 relative overflow-hidden">
+    <div className="min-h-screen bg-black text-foreground flex flex-col pt-20 relative overflow-hidden">
       <Navbar showLogin={false} />
 
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.05] via-transparent to-indigo-500/[0.08] blur-3xl" />
-        <div className="absolute top-1/4 right-[-5%] w-80 h-80 rounded-full bg-cyan-500/30 blur-3xl" />
-        <div className="absolute bottom-1/5 left-[-10%] w-96 h-96 rounded-full bg-indigo-500/25 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/[0.05] via-transparent to-green-500/[0.08] blur-3xl" />
+        <div className="absolute top-1/4 right-[-5%] w-80 h-80 rounded-full bg-primary/30 blur-3xl" />
+        <div className="absolute bottom-1/5 left-[-10%] w-96 h-96 rounded-full bg-primary/25 blur-3xl" />
       </div>
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
-          <div className="bg-slate-950/70 backdrop-blur-xl rounded-2xl border border-slate-800/70 p-8 shadow-[0_18px_60px_rgba(0,0,0,0.85)]">
+          <div className="bg-card backdrop-blur-xl rounded-2xl border border-border p-8 shadow-[0_18px_60px_rgba(0,0,0,0.85)]">
             <div className="text-center mb-8">
-              <p className="text-xs font-semibold tracking-[0.25em] text-cyan-300 uppercase mb-3">Create your Clutter account</p>
+              <p className="text-xs font-semibold tracking-[0.25em] text-[var(--primary-text)] uppercase mb-3">Create your Re-Clutter account</p>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">Get started</h1>
-              <p className="text-sm text-slate-400">Register to create an organization, start projects, and collaborate on diagrams.</p>
+              <p className="text-sm text-muted-foreground">Register to create an organization, start projects, and collaborate on diagrams.</p>
             </div>
 
             <div className="space-y-4">
@@ -179,11 +179,11 @@ export default function RegisterPage() {
                 {isLoading ? "Creating your account..." : "Continue with Google"}
               </Button>
 
-              {errorMsg && <p className="text-xs text-red-400 text-center mt-2">{errorMsg}</p>}
+              {errorMsg && <p className="text-xs text-red-700 dark:text-red-300 text-center mt-2">{errorMsg}</p>}
 
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-xs text-muted-foreground">
                 Already have an account?{" "}
-                <a href="/login" className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2">
+                <a href="/login" className="text-[var(--primary-text)] hover:text-[var(--primary-text)] underline underline-offset-2">
                   Sign in
                 </a>
               </p>
@@ -191,20 +191,20 @@ export default function RegisterPage() {
 
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-slate-950/80 text-slate-400">Secure registration powered by Google &amp; Clutter API</span>
+                <span className="px-4 bg-card text-muted-foreground">Secure registration powered by Google &amp; Re-Clutter API</span>
               </div>
             </div>
 
-            <p className="text-center text-xs text-slate-400 leading-relaxed">
+            <p className="text-center text-xs text-muted-foreground leading-relaxed">
               By continuing, you agree to our{" "}
-              <a href="/terms" className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2">
+              <a href="/terms" className="text-[var(--primary-text)] hover:text-[var(--primary-text)] underline underline-offset-2">
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="/privacy" className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2">
+              <a href="/privacy" className="text-[var(--primary-text)] hover:text-[var(--primary-text)] underline underline-offset-2">
                 Privacy Policy
               </a>
               .

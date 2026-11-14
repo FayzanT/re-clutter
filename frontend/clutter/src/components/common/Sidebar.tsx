@@ -1,213 +1,212 @@
 "use client";
-
+import Brand from "./Brand";
 import { Button } from "@/components/ui/button";
 import { useOrganizations } from "@/lib/features/organization/hooks";
 import { useProjects } from "@/lib/features/projects/hooks";
 import { useLogout, useMe } from "@/lib/features/user/hooks";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookTemplate, ChevronLeft, ChevronRight, FolderOpen, HelpCircle, KeySquare, LayoutDashboard, LogOut, Plus, Settings } from "lucide-react";
-import Image from "next/image";
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  FolderOpen,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-interface SidebarProps {
+export default function DashboardSidebar({
+  className,
+}: {
   className?: string;
-}
-
-export default function DashboardSidebar({ className }: SidebarProps) {
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const logout = useLogout();
-
-  const meQ = useMe();
-  const user = meQ.data ?? null;
+  const user = useMe().data;
   const token = user?.token ?? null;
   const orgsQ = useOrganizations(token);
-  const orgId = orgsQ.data?.[0]?.id ?? null;
-
-  const projectsQ = useProjects(token, orgId);
-  const projects = projectsQ.data ?? [];
-
-  const navItems = [{ icon: LayoutDashboard, label: "Overview", href: "/dashboard" }];
-
-  const bottomItems = [
-    { icon: Settings, label: "Admin Panel", href: "/settings/organization/manage" },
-    // { icon: KeySquare, label: "AWS Account", href: "/settings/organization/aws-account" },
-    // { icon: BookTemplate, label: "Templates", href: "/templates" },
-    // { icon: BarChart3, label: "Insights", href: "/insights" },
-    // { icon: HelpCircle, label: "Help", href: "/help" },
+  const projectsQ = useProjects(token, orgsQ.data?.[0]?.id ?? null);
+  const organization = orgsQ.data?.[0];
+  const items = [
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
+    { icon: FolderOpen, label: "Projects", href: "/projects" },
+    {
+      icon: Cloud,
+      label: "Cloud accounts",
+      href: "/settings/organization/aws-account",
+    },
+    {
+      icon: Settings,
+      label: "Team settings",
+      href: "/settings/organization/manage",
+    },
   ];
-
-  const handleExpand = () => {
-    if (collapsed) setCollapsed(false);
-  };
-
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCollapsed((v) => !v);
-  };
-
-  const getUserInitials = (displayName?: string, email?: string) => {
-    if (displayName) {
-      const names = displayName.trim().split(/\s+/);
-      if (names.length >= 2) return `${names[0][0]}${names[1][0]}`.toUpperCase();
-      return displayName.slice(0, 2).toUpperCase();
-    }
-    if (email) return email.slice(0, 2).toUpperCase();
-    return "??";
-  };
-
-  const handleLogout = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    logout();
-    router.push("/login");
-    router.refresh();
-  };
-
   return (
-    <aside onClick={handleExpand} className={cn("relative flex h-screen shrink-0 flex-col border-r border-slate-800/50 bg-slate-900/40 backdrop-blur-xl transition-all duration-300", collapsed ? "w-16 cursor-pointer" : "w-64", className)}>
-      {/* Expand / Collapse toggle */}
-      {collapsed ? (
-        <button onClick={handleToggle} className="absolute -right-3 top-1/2 z-10 p-1.5 rounded-full bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors shadow-lg">
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-        </button>
-      ) : (
-        <button onClick={handleToggle} className="absolute -right-3 top-1/2 z-10 p-1.5 rounded-full bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors shadow-lg">
-          <ChevronLeft className="w-4 h-4 text-gray-400" />
-        </button>
+    <aside
+      className={cn(
+        "studio-sidebar flex h-full shrink-0 flex-col transition-[width] duration-200",
+        collapsed ? "w-[76px]" : "w-[248px] max-md:w-[76px]",
+        className,
       )}
-
-      {/* Logo */}
-      <div className="flex items-center justify-center p-4 border-b border-slate-800/50">
-        {collapsed ? <Image src="/logos/logo.png" alt="Clutter" width={80} height={80} className="object-contain" /> : <Image src="/logos/logo_text.png" alt="Clutter" width={80} height={80} className="object-contain" />}
+    >
+      <div className="flex h-[84px] items-center justify-between px-5">
+        <span className={cn(!collapsed && "max-md:hidden")}>
+          <Brand compact={collapsed} />
+        </span>
+        {!collapsed && (
+          <span className="hidden max-md:block">
+            <Brand compact />
+          </span>
+        )}
       </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-
+      <div
+        className={cn(
+          "mx-4 mb-7 rounded-xl border border-border bg-muted p-3",
+          collapsed ? "hidden" : "max-md:hidden",
+        )}
+      >
+        <p className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">
+          Workspace
+        </p>
+        <p className="mt-2 truncate text-sm">
+          {organization?.name || "Your organization"}
+        </p>
+      </div>
+      <nav aria-label="Main navigation" className="space-y-1 px-3">
+        {items.map((item) => {
+          const active =
+            pathname === item.href ||
+            (item.href === "/projects" && pathname.startsWith("/projects/"));
           return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={(e) => e.stopPropagation()}
-              className={cn("flex items-center gap-3 px-3 py-2 rounded-lg transition-all", isActive ? "bg-teal-500/10 text-teal-400" : "text-gray-400 hover:bg-slate-800/50 hover:text-white", collapsed && "justify-center")}>
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              title={item.label}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "studio-navigation-link",
+                collapsed && "justify-center !px-0",
+              )}
+            >
+              <item.icon className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && (
+                <span className="max-md:hidden">{item.label}</span>
+              )}
             </Link>
           );
         })}
-
-        {/* Projects (expanded) */}
-        {!collapsed && (
-          <div className="pt-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-3 pb-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Projects</span>
-
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0 hover:bg-slate-800/50" asChild>
-                <Link href="/projects/new">
-                  <Plus className="w-4 h-4 text-gray-400" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="space-y-1">
-              {/* loading states */}
-              {projectsQ.isLoading && projects.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-500 text-center">Loading projects…</div>
-              ) : token === null && user ? (
-                <div className="px-3 py-2 text-xs text-gray-500 text-center">No workspace yet</div>
-              ) : projects.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-500 text-center">No projects yet</div>
-              ) : (
-                projects.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/projects/${project.id}/diagrams`}
-                    className={cn("flex items-center gap-3 px-3 py-2 rounded-lg transition-all", pathname.includes(`/projects/${project.id}`) ? "bg-slate-800/50 text-white" : "text-gray-400 hover:bg-slate-800/30 hover:text-white")}>
-                    {/* <span className="text-lg flex-shrink-0">{getProjectIcon(project.name)}</span> */}
-                    <span className="text-sm truncate">{project.name}</span>
-                  </Link>
-                ))
-              )}
-            </div>
+      </nav>
+      {!collapsed && (
+        <div className="mt-9 min-h-0 flex-1 overflow-y-auto px-5 max-md:hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">
+              Your projects
+            </span>
+            <Link
+              href="/projects/new"
+              aria-label="Create project"
+              className="text-[var(--primary-text)]"
+            >
+              <Plus className="h-4 w-4" />
+            </Link>
           </div>
-        )}
-
-        {/* Projects (collapsed) */}
-        {collapsed && (
-          <div className="pt-6 space-y-1">
-            <div className="flex items-center justify-center px-2 pb-2">
-              <FolderOpen className="h-5 w-5 text-gray-500" />
-            </div>
-
-            {(projectsQ.isLoading ? [] : projects).slice(0, 3).map((project) => (
+          {projectsQ.isLoading ? (
+            <p className="text-xs text-muted-foreground">Loading projects…</p>
+          ) : projectsQ.isError ? (
+            <p className="text-xs text-red-700 dark:text-red-300">Could not load projects.</p>
+          ) : projectsQ.data?.length ? (
+            projectsQ.data.map((project) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}/diagrams`}
-                onClick={(e) => e.stopPropagation()}
-                title={project.name} // native tooltip
-                className={cn(
-                  "group flex items-center justify-center rounded-lg transition-all",
-                  "h-10 w-10 mx-auto",
-                  pathname.includes(`/projects/${project.id}`) ? "bg-slate-800/50 text-white" : "text-gray-400 hover:bg-slate-800/30 hover:text-white",
-                )}>
-                <span className="text-xs font-semibold">{project.name?.trim().split(/\s+/)[0] ?? "?"}</span>
+                className="flex items-center gap-2 rounded-lg py-2 text-xs text-muted-foreground hover:text-[var(--primary-text)]"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span className="truncate">{project.name}</span>
               </Link>
-            ))}
-          </div>
-        )}
-      </nav>
-
-      {/* Bottom */}
-      <div className="border-t border-slate-800/50 p-3 space-y-1">
-        {bottomItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => e.stopPropagation()}
-              className={cn("flex items-center gap-3 px-3 py-2 rounded-lg transition-all", isActive ? "bg-slate-800/50 text-white" : "text-gray-400 hover:bg-slate-800/50 hover:text-white", collapsed && "justify-center")}>
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="text-sm">{item.label}</span>}
-            </Link>
-          );
-        })}
-
-        {(() => {
-          const Icon = LogOut;
-          const isActive = false;
-
-          return (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all", isActive ? "bg-slate-800/50 text-white" : "text-gray-400 hover:bg-slate-800/50 hover:text-white", collapsed && "justify-center")}>
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="text-sm">Logout</span>}
-            </button>
-          );
-        })()}
-
-        {/* User Profile */}
-
-        <div onClick={(e) => e.stopPropagation()} className={cn("flex items-center gap-3 px-3 py-2 mt-2 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all", collapsed && "justify-center")}>
-          <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">{getUserInitials(user?.displayName, user?.email)}</div>
-
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.displayName || "User"}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email || ""}</p>
-            </div>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Create a project to get started.
+            </p>
           )}
         </div>
+      )}
+      <div className="mt-auto p-4">
+        {!collapsed && (
+          <div className="mb-5 rounded-xl bg-primary/5 p-4 max-md:hidden">
+            <p className="text-sm font-semibold text-[var(--primary-text)]">
+              Ready for your next build?
+            </p>
+            <p className="mb-4 mt-2 text-xs leading-5 text-muted-foreground">
+              From your first resource to your next deployment.
+            </p>
+            <Button asChild size="sm" className="w-full">
+              <Link href="/projects/new">
+                New project <ArrowUpRight />
+              </Link>
+            </Button>
+          </div>
+        )}
+        <div className="flex items-center gap-3 border-t border-border pt-5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-xs text-[var(--primary-text)]">
+            {(user?.displayName || user?.email || "U")
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
+          {!collapsed && (
+            <div className="min-w-0 flex-1 max-md:hidden">
+              <p className="truncate text-xs">
+                {user?.displayName || "Your account"}
+              </p>
+              <button
+                onClick={() => {
+                  logout();
+                  router.push("/login");
+                  router.refresh();
+                }}
+                className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-[var(--primary-text)]"
+              >
+                <LogOut className="h-3 w-3" /> Sign out
+              </button>
+            </div>
+          )}
+          {
+            <button
+              aria-label="Sign out"
+              onClick={() => {
+                logout();
+                router.push("/login");
+                router.refresh();
+              }}
+              className={cn(
+                "absolute bottom-20 text-muted-foreground",
+                !collapsed && "md:hidden",
+              )}
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          }
+        </div>
+        <button
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+          className="mt-5 hidden w-full items-center justify-center rounded-lg border border-border py-2 text-muted-foreground md:flex"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </button>
       </div>
     </aside>
   );

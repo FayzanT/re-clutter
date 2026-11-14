@@ -84,35 +84,35 @@ export default function ProjectSettingsPage() {
       {/* ── Delete confirmation modal — outside content div to avoid stacking context ── */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-6">
+          <div className="w-full max-w-md mx-4 rounded-xl bg-card border border-border shadow-2xl p-6">
             <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-900/30 border border-red-800/50 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-500/10 border border-red-800/50 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-700 dark:text-red-300" />
               </div>
               <div>
-                <h3 className="text-white font-semibold text-base mb-1">Delete project</h3>
-                <p className="text-slate-400 text-sm">
+                <h3 className="text-foreground font-semibold text-base mb-1">Delete project</h3>
+                <p className="text-muted-foreground text-sm">
                   Are you sure you want to delete{" "}
-                  <span className="text-white font-medium">&quot;{currentProject.name}&quot;</span>?
+                  <span className="text-foreground font-medium">&quot;{currentProject.name}&quot;</span>?
                   All associated diagrams, credentials, and variables will be permanently removed.
                 </p>
               </div>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="ml-auto flex-shrink-0 text-slate-500 hover:text-slate-300 transition-colors">
+                className="ml-auto flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex justify-end gap-3">
               <Button
                 onClick={() => setShowDeleteModal(false)}
-                className="h-9 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium border border-slate-700">
+                className="h-9 px-4 rounded-lg bg-card hover:bg-muted text-foreground text-sm font-medium border border-border">
                 Cancel
               </Button>
               <Button
                 onClick={handleDeleteConfirm}
                 disabled={deleteM.isPending}
-                className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium">
+                className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500/100 text-foreground text-sm font-medium">
                 {deleteM.isPending ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
@@ -127,24 +127,24 @@ export default function ProjectSettingsPage() {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto py-12 space-y-12 text-white">
+      <div className="max-w-4xl mx-auto py-12 space-y-12 text-foreground">
         {error && (
-          <Alert className="bg-red-900/20 border-red-800">
+          <Alert className="bg-red-500/10 border-red-800">
             <AlertDescription>{String(error)}</AlertDescription>
           </Alert>
         )}
 
         {/* Project name */}
         <div className="space-y-3">
-          <Label className="text-gray-300">Icon and name</Label>
+          <Label className="text-foreground">Icon and name</Label>
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              className="w-12 h-12 rounded-xl bg-slate-800 border-slate-700 text-gray-300 hover:border-teal-400">
+              className="w-12 h-12 rounded-xl bg-card border-border text-foreground hover:border-primary">
               <Layers className="w-5 h-5" />
             </Button>
             <Input
-              className="bg-slate-800 border-slate-700 text-white"
+              className="bg-card border-border text-foreground"
               value={isDraftForCurrentProject ? draft.name : ""}
               onChange={(e) => setName(e.target.value)}
               disabled={isSaving}
@@ -155,9 +155,9 @@ export default function ProjectSettingsPage() {
 
         {/* Project description */}
         <div className="space-y-3">
-          <Label className="text-gray-300">Description</Label>
+          <Label className="text-foreground">Description</Label>
           <Textarea
-            className="bg-slate-800 border-slate-700 text-white"
+            className="bg-card border-border text-foreground"
             rows={3}
             value={isDraftForCurrentProject ? draft.description : ""}
             onChange={(e) => setDescription(e.target.value)}
@@ -172,7 +172,7 @@ export default function ProjectSettingsPage() {
             <Button
               onClick={handleSave}
               disabled={isSaving || !draft.name.trim()}
-              className="bg-teal-500 hover:bg-teal-600 text-white">
+              className="bg-primary hover:bg-primary text-primary-foreground">
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -186,23 +186,23 @@ export default function ProjectSettingsPage() {
               onClick={handleCancel}
               variant="outline"
               disabled={isSaving}
-              className="border-slate-700 text-gray-300 hover:bg-slate-800">
+              className="border-border text-foreground hover:bg-card">
               Cancel
             </Button>
           </div>
         )}
 
         {/* Danger zone */}
-        <div className="space-y-4 pt-8 border-t border-slate-800">
-          <h3 className="text-lg font-semibold text-red-400">Danger zone</h3>
-          <p className="text-gray-400 text-sm">
+        <div className="space-y-4 pt-8 border-t border-border">
+          <h3 className="text-lg font-semibold text-red-700 dark:text-red-300">Danger zone</h3>
+          <p className="text-muted-foreground text-sm">
             When deleting a project, all associated diagrams, credentials, and variables will be
             permanently removed.
           </p>
           <Button
             onClick={() => setShowDeleteModal(true)}
             disabled={isSaving}
-            className="bg-red-600 hover:bg-red-700 text-white">
+            className="bg-red-600 hover:bg-red-700 text-foreground">
             Delete this project
           </Button>
         </div>

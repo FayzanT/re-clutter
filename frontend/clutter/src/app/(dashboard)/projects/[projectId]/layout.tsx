@@ -28,13 +28,13 @@ function ProjectLayoutContent({ children }: ProjectLayoutProps) {
         {/* Loading state */}
         {isLoading && !project && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--primary-text)]" />
           </div>
         )}
         
         {/* Error state */}
         {hasError && !project && (
-          <Alert className="bg-red-900/20 border-red-800">
+          <Alert className="bg-red-500/10 border-red-800">
             <AlertDescription>
               Failed to load project: {String(error)}
             </AlertDescription>
@@ -46,7 +46,7 @@ function ProjectLayoutContent({ children }: ProjectLayoutProps) {
         
         {/* Not found state */}
         {!isLoading && !project && !hasError && (
-          <div className="flex items-center justify-center py-12 text-gray-400">
+          <div className="flex items-center justify-center py-12 text-muted-foreground">
             Project not found
           </div>
         )}
@@ -71,13 +71,13 @@ export default function ProjectLayout({ children }: ProjectLayoutProps) {
   if (!organizationId || !projectId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400">No project ID provided</p>
+        <p className="text-muted-foreground">No project ID provided</p>
       </div>
     );
   }
   
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-black via-slate-900 to-teal-900 text-white">
+    <div className="flex min-h-screen bg-background text-foreground">
       <ProjectProvider organizationId={organizationId} projectId={projectId}>
         <ProjectLayoutContent>{children}</ProjectLayoutContent>
       </ProjectProvider>

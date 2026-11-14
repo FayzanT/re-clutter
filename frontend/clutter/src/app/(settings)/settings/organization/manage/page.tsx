@@ -63,7 +63,7 @@ export default function OrganizationManagePage() {
   if (!isLoading && !token) {
     return (
       <main className="flex items-center justify-center py-12">
-        <div className="text-gray-400">
+        <div className="text-muted-foreground">
           Please sign in to manage your organization.
         </div>
       </main>
@@ -73,7 +73,7 @@ export default function OrganizationManagePage() {
   if (isLoading && !organization) {
     return (
       <main className="flex items-center justify-center py-12">
-        <div className="text-gray-400">Loading organization settings...</div>
+        <div className="text-muted-foreground">Loading organization settings...</div>
       </main>
     );
   }
@@ -81,10 +81,10 @@ export default function OrganizationManagePage() {
   return (
     <>
       <main>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl">
-          <div className="border-b border-slate-800 px-6 py-4">
+        <section className="rounded-2xl border border-border bg-card shadow-xl">
+          <div className="border-b border-border px-6 py-4">
             <h2 className="text-lg font-semibold">Workspace settings</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-400">
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               Update the core details for this organization. Changes may take a
               few seconds to propagate.
             </p>
@@ -114,7 +114,7 @@ export default function OrganizationManagePage() {
                 isDeleting={deleteOrg.isPending}
               />
 
-              <div className="border-slate-800 lg:border-l lg:pl-6 border-t lg:border-t-0">
+              <div className="border-border lg:border-l lg:pl-6 border-t lg:border-t-0">
                 <AddUsersDropdown
                   options={userOptions}
                   onPick={async (member) => {
@@ -141,21 +141,21 @@ export default function OrganizationManagePage() {
           }}
         >
           <div
-            className="mx-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-start gap-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-800/50 bg-red-900/30">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-800/50 bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
               </div>
 
               <div>
-                <h3 className="mb-1 text-base font-semibold text-white">
+                <h3 className="mb-1 text-base font-semibold text-foreground">
                   Delete organization
                 </h3>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   Are you sure you want to delete{" "}
-                  <span className="font-medium text-white">
+                  <span className="font-medium text-foreground">
                     &quot;{organization?.name || "this organization"}&quot;
                   </span>
                   ? This action cannot be undone.
@@ -166,7 +166,7 @@ export default function OrganizationManagePage() {
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleteOrg.isPending}
-                className="ml-auto flex-shrink-0 text-slate-500 transition-colors hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="ml-auto flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -177,7 +177,7 @@ export default function OrganizationManagePage() {
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleteOrg.isPending}
-                className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -195,7 +195,7 @@ export default function OrganizationManagePage() {
                   router.replace("/");
                   router.refresh();
                 }}
-                className="h-9 rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-9 rounded-lg bg-red-600 px-4 text-sm font-medium text-foreground transition-colors hover:bg-red-500/100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deleteOrg.isPending ? "Deleting..." : "Delete"}
               </button>

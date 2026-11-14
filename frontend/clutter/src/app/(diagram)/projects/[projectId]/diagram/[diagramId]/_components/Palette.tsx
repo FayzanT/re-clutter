@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers, Search } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 
@@ -19,6 +19,7 @@ type PaletteProps = {
 };
 
 export default function Palette({ isReadOnly = false }: PaletteProps) {
+  const [search, setSearch] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const sections = useMemo<Section[]>(() => {
@@ -43,12 +44,17 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
     ];
   }, []);
 
+  const filteredSections = sections.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => `${section.title} ${item.label}`.toLowerCase().includes(search.trim().toLowerCase())),
+  })).filter((section) => section.items.length > 0);
+
   return (
     <aside
       className={[
-        "relative z-50 overflow-visible pointer-events-auto h-full shrink-0 border-r border-slate-800 bg-slate-950/70 backdrop-blur",
+        "relative z-50 overflow-visible pointer-events-auto h-full shrink-0 border-r border-border bg-card backdrop-blur",
         "transition-[width] duration-200",
-        isCollapsed ? "w-14" : "w-[200px]",
+        isCollapsed ? "w-14" : "w-[248px] max-md:w-[200px]",
       ].join(" ")}
     >
       <button
@@ -60,28 +66,28 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
         className={[
           "absolute -right-3 top-1/2 -translate-y-1/2 z-[60] pointer-events-auto",
           "grid h-7 w-7 place-items-center rounded-full",
-          "border border-slate-700 bg-slate-900 shadow-lg transition hover:bg-slate-800",
+          "border border-border bg-card shadow-lg transition hover:bg-secondary",
         ].join(" ")}
         aria-label={isCollapsed ? "Expand palette" : "Collapse palette"}
         title={isCollapsed ? "Expand" : "Collapse"}
       >
         {isCollapsed ? (
-          <ChevronRight className="h-4 w-4 text-slate-300" />
+          <ChevronRight className="h-4 w-4 text-foreground" />
         ) : (
-          <ChevronLeft className="h-4 w-4 text-slate-300" />
+          <ChevronLeft className="h-4 w-4 text-foreground" />
         )}
       </button>
 
-      <div className="flex h-14 items-center gap-2 border-b border-slate-800 px-3">
+      <div className="flex h-20 items-center gap-2 border-b border-border px-3">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900">
-            <Layers className="h-4 w-4 text-slate-300" />
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card">
+            <Layers className="h-4 w-4 text-foreground" />
           </div>
 
           {!isCollapsed && (
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-slate-100">
-                Resources
+              <div className="truncate text-sm font-semibold text-foreground">
+                Resource library
               </div>
             </div>
           )}
@@ -89,21 +95,29 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
       </div>
 
       {isCollapsed ? (
-        <div className="flex h-[calc(100%-3.5rem)] items-center justify-center">
-          <span className="select-none text-[11px] font-semibold tracking-widest text-slate-300 [writing-mode:vertical-rl] rotate-180">
-            PALETTE
+        <div className="flex h-[calc(100%-5rem)] items-center justify-center">
+          <span className="select-none text-[11px] font-semibold tracking-widest text-foreground [writing-mode:vertical-rl] rotate-180">
+            RESOURCES
           </span>
         </div>
       ) : (
-        <div className="h-[calc(100%-3.5rem)] overflow-y-auto px-3 py-3">
+        <div className="h-[calc(100%-5rem)] overflow-y-auto px-3 py-3">
           <div className="space-y-5">
-            {sections.map((sec) => (
+            <div>
+              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">Drag a resource onto the canvas, then select it to configure.</p>
+              <label className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 focus-within:border-primary">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <input aria-label="Search resources" placeholder="Find a resource…" value={search} onChange={(event) => setSearch(event.target.value)} className="w-full min-w-0 bg-transparent text-sm text-foreground outline-none" />
+              </label>
+            </div>
+            {filteredSections.length === 0 && <p className="text-sm text-muted-foreground">No matching resources. Try another search.</p>}
+            {filteredSections.map((sec) => (
               <section key={sec.title}>
                 <div className="mb-2 flex items-center gap-2">
-                  <div className="text-[11px] font-semibold tracking-wider text-slate-400">
+                  <div className="text-[11px] font-semibold tracking-wider text-muted-foreground">
                     {sec.title}
                   </div>
-                  <div className="h-px flex-1 bg-slate-800" />
+                  <div className="h-px flex-1 bg-card" />
                 </div>
 
                 <div className="space-y-2">
@@ -121,10 +135,10 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
                       }}
                       className={[
                         "flex select-none items-center gap-3 rounded-lg",
-                        "border border-slate-800 bg-slate-900/40 px-3 py-2.5 transition",
+                        "border border-border bg-background px-3 py-3.5 transition",
                         isReadOnly
                           ? "cursor-not-allowed opacity-50"
-                          : "cursor-grab hover:bg-slate-900/70 hover:border-slate-700 active:cursor-grabbing",
+                          : "cursor-grab hover:bg-secondary hover:border-primary/50 active:cursor-grabbing",
                       ].join(" ")}
                       title={
                         isReadOnly
@@ -132,7 +146,7 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
                           : "Drag to add"
                       }
                     >
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-slate-800 bg-slate-950">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border bg-card">
                         <Image
                           src={item.img}
                           alt={item.label}
@@ -143,10 +157,10 @@ export default function Palette({ isReadOnly = false }: PaletteProps) {
                         />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-slate-100">
+                        <div className="truncate text-sm font-medium text-foreground">
                           {item.label}
                         </div>
-                        <div className="truncate text-[11px] text-slate-400">
+                        <div className="truncate text-[11px] text-muted-foreground">
                           {isReadOnly ? "Temporarily disabled" : "Drag to add"}
                         </div>
                       </div>

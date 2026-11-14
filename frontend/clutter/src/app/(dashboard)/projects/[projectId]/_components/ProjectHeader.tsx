@@ -83,14 +83,14 @@ export function ProjectHeader() {
 
   return (
     <>
-      <header className="border-b border-slate-800 px-12 py-8 flex items-center justify-between">
+      <header className="border-b border-border px-12 py-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-blue-600 p-[2px]">
-            <div className="w-full h-full flex items-center justify-center rounded-2xl bg-slate-900">
+          <div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-primary p-[2px]">
+            <div className="w-full h-full flex items-center justify-center rounded-2xl bg-card">
               {projectLoading ? (
-                <Loader2 className="w-6 h-6 text-teal-300 animate-spin" />
+                <Loader2 className="w-6 h-6 text-[var(--primary-text)] animate-spin" />
               ) : (
-                <Layers className="w-6 h-6 text-teal-300" />
+                <Layers className="w-6 h-6 text-[var(--primary-text)]" />
               )}
             </div>
           </div>
@@ -101,7 +101,7 @@ export function ProjectHeader() {
           <Button
             onClick={handleCreateDiagram}
             disabled={projectLoading || !project || isCreating}
-            className="bg-gradient-to-br from-teal-600 to-blue-600 hover:opacity-90 text-white px-4 disabled:opacity-50"
+            className="bg-primary hover:opacity-90 text-primary-foreground px-4 disabled:opacity-50"
           >
             {isCreating ? (
               <>
@@ -120,8 +120,8 @@ export function ProjectHeader() {
 
       {/* Error banner */}
       {createError && (
-        <div className="px-12 py-3 bg-red-900/20 border-b border-red-800">
-          <p className="text-sm text-red-400">Failed to create diagram: {createError}</p>
+        <div className="px-12 py-3 bg-red-500/10 border-b border-red-800">
+          <p className="text-sm text-red-700 dark:text-red-300">Failed to create diagram: {createError}</p>
         </div>
       )}
     </>

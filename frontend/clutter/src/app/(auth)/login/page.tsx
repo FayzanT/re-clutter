@@ -3,7 +3,11 @@
 import Navbar from "@/components/common/Navbar";
 import { organizationApi } from "@/lib/features/organization/api";
 import { useOrganizations } from "@/lib/features/organization/hooks";
-import { useLoginWithGoogle, useLogout, useMe } from "@/lib/features/user/hooks";
+import {
+  useLoginWithGoogle,
+  useLogout,
+  useMe,
+} from "@/lib/features/user/hooks";
 import { GoogleLogin } from "@react-oauth/google";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +39,9 @@ export default function LoginPage() {
 
   const [postLoginError, setPostLoginError] = useState<string | null>(null);
   const [isResolvingLogin, setIsResolvingLogin] = useState(false);
-  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<
+    string | null
+  >(null);
 
   const rawToken = meQ.data?.token ?? null;
   const token = rawToken && !isTokenExpired(rawToken) ? rawToken : null;
@@ -72,7 +78,15 @@ export default function LoginPage() {
     if (orgsQ.isError) return;
 
     router.replace(hasOrg ? "/dashboard" : "/onboarding/create-org");
-  }, [token, orgsQ.isLoading, orgsQ.isError, orgsQ.error, hasOrg, router, logout]);
+  }, [
+    token,
+    orgsQ.isLoading,
+    orgsQ.isError,
+    orgsQ.error,
+    hasOrg,
+    router,
+    logout,
+  ]);
 
   const isChecking = !!token && orgsQ.isLoading;
 
@@ -109,32 +123,26 @@ export default function LoginPage() {
   const showOrgNetworkError = orgsQ.isError && orgErrorStatus !== 403;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col pt-20 relative overflow-hidden">
+    <div className="product-public login-page">
       <Navbar showLogin={false} />
-
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.05] via-transparent to-indigo-500/[0.08] blur-3xl" />
-        <div className="absolute top-1/4 right-[-5%] w-80 h-80 rounded-full bg-cyan-500/30 blur-3xl" />
-        <div className="absolute bottom-1/5 left-[-10%] w-96 h-96 rounded-full bg-indigo-500/25 blur-3xl" />
-      </div>
-
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="w-full max-w-md">
-          <div className="bg-slate-950/70 backdrop-blur-xl rounded-2xl border border-slate-800/70 p-8 shadow-[0_18px_60px_rgba(0,0,0,0.85)]">
-            <div className="text-center mb-8">
-              <p className="text-xs font-semibold tracking-[0.25em] text-cyan-300 uppercase mb-3">
-                Clutter Access
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
-                Welcome back
-              </h1>
-              <p className="text-sm text-slate-400">
-                Sign in to continue to your projects and diagrams.
-              </p>
-            </div>
-
-            <div className="flex justify-center">
+      <main className="login-layout">
+        <section className="login-form-panel" aria-labelledby="login-heading">
+          <div className="login-form-inner">
+            <p className="login-workspace-label">Re-Clutter workspace</p>
+            <h1 id="login-heading" className="section-heading">
+              Welcome back.
+            </h1>
+            <p className="login-description">
+              Your cloud infrastructure, all in one place.
+              <br />
+              Sign in to continue building.
+            </p>
+            <div className="google-signin-container">
               <GoogleLogin
+                theme="outline"
+                size="large"
+                shape="rectangular"
+                width="300"
                 onSuccess={async (credentialResponse) => {
                   const googleIdToken = credentialResponse.credential;
                   if (!googleIdToken) {
@@ -161,7 +169,7 @@ export default function LoginPage() {
             </div>
 
             {(isChecking || isResolvingLogin) && (
-              <div className="mt-6 text-center text-sm text-slate-400">
+              <div className="mt-6 text-center text-sm text-muted-foreground">
                 Checking your organizations…
               </div>
             )}
@@ -171,7 +179,7 @@ export default function LoginPage() {
               meQ.isError ||
               showOrgNetworkError ||
               postLoginError) && (
-              <div className="mt-6 text-sm text-red-400">
+              <div className="mt-6 text-sm text-red-700 dark:text-red-300">
                 {sessionExpiredMessage && <div>{sessionExpiredMessage}</div>}
                 {login.isError && <div>Login error: {String(login.error)}</div>}
                 {meQ.isError && <div>Auth error: {String(meQ.error)}</div>}
@@ -182,35 +190,21 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-slate-950/80 text-slate-400">
-                  Secure sign in powered by Google &amp; Clutter API
-                </span>
-              </div>
-            </div>
-
-            <p className="text-center text-xs text-slate-400 leading-relaxed">
-              By continuing, you agree to our{" "}
-              <a
-                href="/terms"
-                className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
-              >
-                Terms of Service
-              </a>{" "}
-              and{" "}
-              <a
-                href="/privacy"
-                className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
-              >
-                Privacy Policy
-              </a>
-              .
+            <p className="mt-5 text-center text-sm leading-6 text-muted-foreground">
+              Continue with your Google account to access your workspace.
             </p>
           </div>
+        </section>
+        <p className="login-form-footer">A clearer way to build your cloud.</p>
+        <div
+          className="login-capabilities"
+          aria-label="Design, connect, deploy"
+        >
+          <span>Design</span>
+          <span aria-hidden="true">·</span>
+          <span>Connect</span>
+          <span aria-hidden="true">·</span>
+          <span>Deploy</span>
         </div>
       </main>
     </div>

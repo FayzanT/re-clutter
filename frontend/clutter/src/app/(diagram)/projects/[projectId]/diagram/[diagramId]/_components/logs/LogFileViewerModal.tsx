@@ -17,32 +17,32 @@ export default function LogFileViewerModal({
       onClick={onClose}
     >
       <div
-        className="flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-2xl"
+        className="flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-slate-100">{title}</h2>
-            <p className="text-xs text-slate-500">Log file preview</p>
+            <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+            <p className="text-xs text-muted-foreground">Log file preview</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             Close
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto bg-neutral-950 p-4">
+        <div className="flex-1 overflow-auto bg-card p-4">
           {loading ? (
-            <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-              <span className="h-3 w-3 rounded-full border border-slate-400 border-t-transparent animate-spin" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+              <span className="h-3 w-3 rounded-full border border-border border-t-transparent animate-spin" />
               Loading log file…
             </div>
           ) : error ? (
-            <p className="text-xs font-mono text-red-400">{error}</p>
+            <p className="text-xs font-mono text-red-700 dark:text-red-300">{error}</p>
           ) : (
-            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-300">
+            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-foreground">
               {content || "Empty log file."}
             </pre>
           )}

@@ -43,6 +43,14 @@ With the devserver and a headless Chrome, 2026-11-04:
 | Saving generates Terraform, and Preview Terraform reads it | works; the panel text equals the file on disk, with download. The button is disabled while there are unsaved changes |
 | Deploy, Destroy, Ansible jobs | fail at their ECS or SQS call, as expected locally |
 
+## Interface experiment (2026-11-13)
+
+`experiment/user-interfaces` uses Re-Clutter branding, predominantly black and white surfaces, and pale green accents and gradients in both themes, with neutral grey dark surfaces and a plain login background (ADR-013). `src/app/globals.css` owns both palettes. The sun/moon control in public navigation, workspace navigation and the diagram toolbar switches modes. An explicit choice is saved in the browser and synchronized between tabs; without a saved choice the app follows the system theme. The root layout applies the preference before hydration. `src/lib/theme.ts` owns runtime synchronization and handles disabled storage.
+
+Pale green actions use dark text, and light-mode accent labels use a deeper green for contrast. The login is a centered sign-in card with plain typography, clear spacing and text-only supporting information. `WorkspaceShell` owns dashboard, project and settings navigation; `Brand` owns the wordmark and reads the shared Re-CL logo from `public/logos/re-cl.svg`, also used as the browser icon. The dashboard combines projects and activity with direct shortcuts. Projects and resources support local text filtering; the canvas switches its colors with the rest of the app.
+
+Checked in Chrome: both login themes, persisted choice across reload/navigation, system changes before an explicit choice, tab synchronization, toggling with storage blocked, phone layouts without horizontal overflow, project/resource filtering, and resource configuration in both editor themes. Signed-in visual checks use isolated browser fixtures. Four theme tests (`npx --prefix frontend/clutter vitest run frontend/clutter/src/lib/theme.test.tsx` from the repository root), type-check and webpack build pass. Lint has 0 errors and 6 existing warnings. Backend smoke passed earlier in this UI experiment (0 failures). Google OAuth and real cloud deployments were not exercised.
+
 ## Where things are
 
 - `src/app/`: routes, in four groups.

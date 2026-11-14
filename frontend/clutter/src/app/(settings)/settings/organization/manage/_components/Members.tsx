@@ -17,9 +17,9 @@ function initials(name: string) {
 export default function Members({ members }: { members: OrgMember[]; }) {
   return (
     <section className="space-y-2 py-2">
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {/* Header (stays visible) */}
-        <div className="grid grid-cols-12 px-4 py-3 text-xs text-slate-400 border-b border-slate-800">
+        <div className="grid grid-cols-12 px-4 py-3 text-xs text-muted-foreground border-b border-border">
           <div className="col-span-8">User</div>
           <div className="col-span-4">Role</div>
         </div>
@@ -31,21 +31,21 @@ export default function Members({ members }: { members: OrgMember[]; }) {
               <li key={m.id} className="px-4 py-3">
                 <div className="grid grid-cols-12 items-center gap-3">
                   <div className="col-span-8 flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-slate-800/70 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-100 shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-card border border-border flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
                       {initials(m.name)}
                     </div>
 
                     <div className="min-w-0">
-                      <div className="text-sm text-slate-100 truncate">
+                      <div className="text-sm text-foreground truncate">
                         {m.name}
                       </div>
-                      <div className="text-xs text-slate-400 truncate">
+                      <div className="text-xs text-muted-foreground truncate">
                         {m.email}
                       </div>
                     </div>
                   </div>
 
-                  <div className="col-span-4 text-sm text-slate-100">
+                  <div className="col-span-4 text-sm text-foreground">
                     {m.role}
                   </div>
                 </div>
@@ -53,7 +53,7 @@ export default function Members({ members }: { members: OrgMember[]; }) {
             ))}
 
             {members.length === 0 && (
-              <li className="px-4 py-6 text-sm text-slate-400">No members yet.</li>
+              <li className="px-4 py-6 text-sm text-muted-foreground">No members yet.</li>
             )}
           </ul>
         </div>

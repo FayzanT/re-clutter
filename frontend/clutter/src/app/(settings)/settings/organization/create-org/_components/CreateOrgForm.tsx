@@ -32,10 +32,10 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
     };
 
     return (
-        <section className="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
-        <div className="border-b border-slate-800 px-6 py-4">
+        <section className="bg-card border border-border rounded-2xl shadow-xl">
+        <div className="border-b border-border px-6 py-4">
             <h2 className="text-lg font-semibold">Create a new organization</h2>
-            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Use organizations to separate environments (demo, client projects,
             internal tools) and manage access independently.
             </p>
@@ -44,7 +44,7 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
         <form className="px-6 py-6 space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-200">
+                <label className="block text-sm font-medium text-foreground">
                 Organization name
                 </label>
                 <input
@@ -53,15 +53,15 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
                 placeholder="e.g. Demo Organization"
                 value={values.orgName}
                 onChange={handleChange("orgName")}
-                className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                     This cannot be changed after creation.
                 </p>
             </div>
 
             <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-200">
+                <label className="block text-sm font-medium text-foreground">
                 Slug / ID
                 </label>
                 <input
@@ -70,9 +70,9 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
                 placeholder="e.g. demo-org"
                 value={values.slug}
                 onChange={handleChange("slug")}
-                className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                 Lowercase, no spaces. Used in URLs and APIs.
                 </p>
             </div>
@@ -80,13 +80,13 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-200">
+                    <label className="block text-sm font-medium text-foreground">
                     Time zone
                     </label>
                     <select
                     value={values.timeZone}
                     onChange={handleChange("timeZone")}
-                    className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                     >
                     <option value="America/Edmonton">(UTC-07:00) Edmonton</option>
                     <option value="America/Denver">(UTC-07:00) Denver</option>
@@ -95,20 +95,20 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
                     </select>
                 </div>
                 <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-200">
+                <label className="block text-sm font-medium text-foreground">
                     Initial visibility
                 </label>
                 <select
                     value={values.visibility}
                     onChange={handleChange("visibility")}
-                    className="w-full rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full rounded-lg bg-card border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                 >
                     <option value="private">Private (invite only)</option>
                     <option value="team">
                     Visible to team, restricted project access
                     </option>
                 </select>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                     You can customize member roles after creation.
                 </p>
             </div>
@@ -117,18 +117,18 @@ export default function CreateOrgForm({ initialValues, onSubmit, onCancel, isCre
             
             
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 rounded-lg border border-slate-700 text-sm text-slate-300 hover:bg-slate-900/80 transition"
+                className="px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-card transition"
             >
                 Cancel
             </button>
             <button
                 type="submit"
                 disabled={isCreating}
-                className="px-4 py-2 rounded-lg bg-teal-500 text-sm font-medium text-black hover:bg-teal-400 disabled:opacity-60 transition shadow-md shadow-teal-500/30"
+                className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary disabled:opacity-60 transition shadow-md shadow-green-500/20"
             >
                 {isCreating ? "Creating…" : "Create organization"}
             </button>

@@ -27,18 +27,18 @@ export function EmptyState({
           py-24 
           mt-12
           rounded-2xl
-          border border-dashed border-slate-600/50
-          bg-slate-900/20
+          border border-dashed border-border
+          bg-card
         "
       >
         <div className="text-5xl mb-6">{icon}</div>
-        <h2 className="text-2xl font-semibold text-white mb-3">{title}</h2>
-        <p className="text-gray-400 mb-8">{description}</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-3">{title}</h2>
+        <p className="text-muted-foreground mb-8">{description}</p>
         
         {actionLabel && onAction && (
           <Button
             onClick={onAction}
-            className="bg-slate-800 border border-slate-700 hover:border-teal-500/50 text-gray-300 px-5 py-4 rounded-lg"
+            className="bg-card border border-border hover:border-primary/50 text-foreground px-5 py-4 rounded-lg"
           >
             {actionLabel}
           </Button>

@@ -51,18 +51,18 @@ function formatDuration(seconds: number): string {
 
 const STATUS_CONFIG: Record<string, { dot: string; badge: string; label: string }> = {
   SUCCESS: {
-    dot: "bg-emerald-400",
-    badge: "bg-emerald-500/10 text-emerald-400",
+    dot: "bg-green-400",
+    badge: "bg-green-500/100/10 text-green-700 dark:text-green-300",
     label: "success",
   },
   FAILED: {
     dot: "bg-red-400",
-    badge: "bg-red-500/10 text-red-400",
+    badge: "bg-red-500/100/10 text-red-700 dark:text-red-300",
     label: "failed",
   },
   RUNNING: {
-    dot: "bg-blue-400 animate-pulse",
-    badge: "bg-blue-500/10 text-blue-400",
+    dot: "bg-primary animate-pulse",
+    badge: "bg-primary/10 text-[var(--primary-text)]",
     label: "running",
   },
 };
@@ -70,7 +70,7 @@ const STATUS_CONFIG: Record<string, { dot: string; badge: string; label: string 
 function getStatusConfig(status: string) {
   return STATUS_CONFIG[status] ?? {
     dot: "bg-slate-500",
-    badge: "bg-white/5 text-slate-400",
+    badge: "bg-muted/50 text-muted-foreground",
     label: status.toLowerCase(),
   };
 }
@@ -129,13 +129,13 @@ export default function FilesTab({
   }, [grouped, activityByDeployment]);
 
   if (isLoading) {
-    return <p className="text-slate-500 text-xs font-mono p-4">Loading log files…</p>;
+    return <p className="text-muted-foreground text-xs font-mono p-4">Loading log files…</p>;
   }
   if (isError) {
-    return <p className="text-red-400 text-xs font-mono p-4">Failed to load log files.</p>;
+    return <p className="text-red-700 dark:text-red-300 text-xs font-mono p-4">Failed to load log files.</p>;
   }
   if (!files?.length) {
-    return <p className="text-slate-600 text-xs font-mono p-4">No log files found.</p>;
+    return <p className="text-muted-foreground text-xs font-mono p-4">No log files found.</p>;
   }
 
   const handleOpenViewer = async (args: {
@@ -181,7 +181,7 @@ export default function FilesTab({
                 )}
 
                 {/* command_id (deploymentId) */}
-                <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                   {deploymentId}
                 </span>
 
@@ -199,16 +199,16 @@ export default function FilesTab({
 
                 {/* Duration */}
                 {act && (
-                  <span className="shrink-0 text-[10px] text-slate-600 tabular-nums">
+                  <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                     {formatDuration(act.duration_seconds)}
                   </span>
                 )}
 
-                <div className="h-px flex-1 bg-white/10" />
+                <div className="h-px flex-1 bg-muted" />
 
                 {/* Date + relative time */}
                 {act && (
-                  <span className="shrink-0 text-[10px] text-slate-600 tabular-nums">
+                  <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                     {formatDateTime(act.created_at)}
                     <span className="mx-1 opacity-40">·</span>
                     {relativeTime(act.created_at)}

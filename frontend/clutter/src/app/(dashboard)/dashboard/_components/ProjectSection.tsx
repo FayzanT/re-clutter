@@ -1,9 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { Project } from "@/lib/features/projects/types";
-import { Clock, FolderOpen, Plus, Users } from "lucide-react";
+import { ArrowUpRight, FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 interface ProjectsSectionProps {
@@ -13,57 +19,54 @@ interface ProjectsSectionProps {
 export default function ProjectsSection({ projects }: ProjectsSectionProps) {
   const router = useRouter();
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   return (
     <div className="mb-8">
-      <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <FolderOpen className="w-6 h-6 text-teal-400" />
-        Your Projects
+      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <FolderOpen className="w-6 h-6 text-[var(--primary-text)]" />
+        Your projects
       </h2>
 
       {projects.length === 0 ? (
-        <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50">
+        <Card className="bg-card border-border">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="w-16 h-16 text-gray-600 mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No projects yet</h3>
-            <p className="text-gray-400 text-center mb-6">Create your first project to start building infrastructure</p>
-            <Button onClick={() => router.push("/projects/new")} className="bg-teal-500 hover:bg-teal-600">
+            <FolderOpen className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No projects yet
+            </h3>
+            <p className="text-muted-foreground text-center mb-6">
+              Create your first project to start building infrastructure
+            </p>
+            <Button
+              onClick={() => router.push("/projects/new")}
+              className="bg-primary text-primary-foreground hover:bg-primary"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Create Project
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map((project) => (
             <Link key={project.id} href={`/projects/${project.id}/diagrams`}>
-              <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50 hover:border-teal-500/50 transition-all cursor-pointer group">
+              <Card className="h-full bg-card border-border hover:border-primary/50 hover:-translate-y-0.5 transition-all cursor-pointer group">
                 <CardHeader>
-                  <CardTitle className="text-white group-hover:text-teal-400 transition-colors">{project.name}</CardTitle>
-                  <CardDescription className="text-gray-400 line-clamp-2">{project.description || "No description"}</CardDescription>
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-secondary text-[var(--primary-text)]">
+                    <FolderOpen className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-foreground group-hover:text-[var(--primary-text)] transition-colors">
+                    {project.name}
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground line-clamp-2">
+                    {project.description || "No description"}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    {/* we dont have this data  */}
-                    {/* <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {formatDate(project.updatedAt)}
-                    </span>
-                    {project.memberCount && (
-                      <span className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {project.memberCount}
-                      </span>
-                    )} */}
+                  <p className="mb-4 text-xs text-muted-foreground">
+                    {project.diagrams?.length ?? 0} architectures
+                  </p>
+                  <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-[var(--primary-text)]">
+                    Open project <ArrowUpRight className="h-4 w-4" />
                   </div>
                 </CardContent>
               </Card>

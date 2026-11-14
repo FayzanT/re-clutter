@@ -21,20 +21,20 @@ export default function AwsDeleteConfirmModal({
       onClick={isDeleting ? undefined : onCancel}
     >
       <div
-        className="mx-4 w-full max-w-2xl rounded-[28px] border border-slate-700 bg-slate-900 p-8 shadow-2xl"
+        className="mx-4 w-full max-w-2xl rounded-[28px] border border-border bg-card p-8 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-8 flex items-start gap-5">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-amber-800/60 bg-amber-900/20">
-            <AlertTriangle className="h-7 w-7 text-amber-400" />
+          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-amber-800/60 bg-amber-500/10">
+            <AlertTriangle className="h-7 w-7 text-amber-700 dark:text-amber-300" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="mb-2 text-3xl font-semibold tracking-tight text-white">
+            <h3 className="mb-2 text-3xl font-semibold tracking-tight text-foreground">
               Delete AWS account link?
             </h3>
-            <p className="text-xl leading-relaxed text-slate-400">
+            <p className="text-xl leading-relaxed text-muted-foreground">
               You are about to remove{" "}
-              <span className="font-semibold text-white">
+              <span className="font-semibold text-foreground">
                 &quot;{accountName}&quot;
               </span>
               . If you continue, this AWS account connection will be deleted and you will need to set it up again.
@@ -44,7 +44,7 @@ export default function AwsDeleteConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={isDeleting}
-            className="flex-shrink-0 text-slate-500 transition-colors hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X className="h-6 w-6" />
           </button>
@@ -55,7 +55,7 @@ export default function AwsDeleteConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={isDeleting}
-            className="h-14 rounded-2xl border border-slate-700 bg-slate-800 px-8 text-2xl font-semibold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-14 rounded-2xl border border-border bg-card px-8 text-2xl font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
@@ -63,7 +63,7 @@ export default function AwsDeleteConfirmModal({
             type="button"
             onClick={() => void onConfirm()}
             disabled={isDeleting}
-            className="h-14 rounded-2xl bg-amber-600 px-8 text-2xl font-semibold text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-14 rounded-2xl bg-amber-600 px-8 text-2xl font-semibold text-foreground transition-colors hover:bg-amber-500/100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </button>

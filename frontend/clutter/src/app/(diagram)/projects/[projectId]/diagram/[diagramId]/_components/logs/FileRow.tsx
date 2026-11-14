@@ -44,17 +44,17 @@ export default function FileRow({
         })
       }
       disabled={isLoadingThisFile}
-      className="flex w-full items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex w-full items-center justify-between rounded-md border border-border bg-muted/50 px-3 py-2 text-left text-xs transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
     >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate font-mono text-slate-200">{file}</span>
-        <span className="tabular-nums text-slate-500">{deploymentId}</span>
+        <span className="truncate font-mono text-foreground">{file}</span>
+        <span className="tabular-nums text-muted-foreground">{deploymentId}</span>
       </div>
 
-      <div className="ml-4 shrink-0 flex items-center gap-1.5 text-slate-300">
+      <div className="ml-4 shrink-0 flex items-center gap-1.5 text-foreground">
         {isLoadingThisFile ? (
           <>
-            <span className="h-3 w-3 rounded-full border border-slate-400 border-t-transparent animate-spin" />
+            <span className="h-3 w-3 rounded-full border border-border border-t-transparent animate-spin" />
             Opening…
           </>
         ) : (

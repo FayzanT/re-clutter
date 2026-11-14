@@ -19,7 +19,7 @@ export function ProjectNav() {
   };
   
   return (
-    <nav className="px-12 border-b border-slate-800">
+    <nav className="px-12 border-b border-border">
       <div className="flex gap-8">
         {navigationItems.map((item) => {
           const active = isActive(item.href);
@@ -29,12 +29,12 @@ export function ProjectNav() {
               key={item.href}
               href={`/projects/${projectId}/${item.href}`}
               className={`py-4 text-sm font-medium relative transition ${
-                active ? "text-teal-400" : "text-gray-400 hover:text-gray-200"
+                active ? "text-[var(--primary-text)]" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}
               {active && (
-                <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-gradient-to-r from-teal-400 to-blue-500 rounded-full" />
+                <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-primary rounded-full" />
               )}
             </Link>
           );

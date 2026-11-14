@@ -1,20 +1,49 @@
 "use client";
 
-import type { Connection, EdgeChange, IsValidConnection, NodeChange, NodeProps, NodeTypes } from "@xyflow/react";
-import { addEdge, applyEdgeChanges, applyNodeChanges, Background, BackgroundVariant, Controls, Panel, ReactFlow, useReactFlow } from "@xyflow/react";
+import type {
+  Connection,
+  EdgeChange,
+  IsValidConnection,
+  NodeChange,
+  NodeProps,
+  NodeTypes,
+} from "@xyflow/react";
+import {
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
+  Background,
+  BackgroundVariant,
+  Controls,
+  Panel,
+  ReactFlow,
+  useReactFlow,
+} from "@xyflow/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useTheme } from "@/lib/theme";
 import Palette from "./Palette";
 import TopNav from "./TopNav";
 import TerraformPreview from "./TerraformPreview";
 import AwsServiceNode from "./nodes/AwsServiceNode";
 import ConfigPanel from "./nodes/ConfigPanel";
 
-import { useDiagram, useRunTerraform, useUpdateDiagramData } from "@/lib/features/diagram/hooks";
+import {
+  useDiagram,
+  useRunTerraform,
+  useUpdateDiagramData,
+} from "@/lib/features/diagram/hooks";
 import type { DiagramEdge, DiagramNode } from "@/lib/features/diagram/types";
-import { useDiagramEditor, useDiagramEditorActions } from "@/lib/features/diagram/uiStore";
+import {
+  useDiagramEditor,
+  useDiagramEditorActions,
+} from "@/lib/features/diagram/uiStore";
 import { useLiveLogsAccumulated } from "@/lib/features/logs/hooks";
-import { useLinkFakeAccount, useOrganizationAccounts, useOrganizations } from "@/lib/features/organization/hooks";
+import {
+  useLinkFakeAccount,
+  useOrganizationAccounts,
+  useOrganizations,
+} from "@/lib/features/organization/hooks";
 import { useSupportedResources } from "@/lib/features/resources/hooks";
 import { useMe } from "@/lib/features/user/hooks";
 import { useRouter } from "next/navigation";
@@ -61,15 +90,26 @@ const getVariableError = (name: string, value: unknown, required: boolean) => {
     }
   }
 
-  if (name === "resource_name" && stringValue && !RESOURCE_NAME_PATTERN.test(stringValue)) {
+  if (
+    name === "resource_name" &&
+    stringValue &&
+    !RESOURCE_NAME_PATTERN.test(stringValue)
+  ) {
     return "Use lowercase letters, numbers, and hyphens only, for example test-lambda.";
   }
 
   return null;
 };
 
-export default function DiagramEditor({ projectId, diagramId, }: { projectId: string; diagramId: string; }) {
+export default function DiagramEditor({
+  projectId,
+  diagramId,
+}: {
+  projectId: string;
+  diagramId: string;
+}) {
   const router = useRouter();
+  const { theme } = useTheme();
 
   const meQ = useMe();
   const token = meQ.data?.token ?? null;
@@ -80,7 +120,10 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
   const { screenToFlowPosition } = useReactFlow();
 
   const orgAWS = useOrganizationAccounts(token, orgId);
-  const connectedAwsAccount = orgAWS.data?.find((account) => account.status === "complete" && !!account.role_arn, ) ?? null;
+  const connectedAwsAccount =
+    orgAWS.data?.find(
+      (account) => account.status === "complete" && !!account.role_arn,
+    ) ?? null;
   const awsId = connectedAwsAccount?.id ?? null;
   const isAwsBlocked = !orgAWS.isLoading && !!orgId && !awsId;
   const linkFakeAccountM = useLinkFakeAccount(token);
@@ -109,9 +152,14 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
     return sessionStorage.getItem(`taskArn:${diagramId}`);
   });
 
-  const [currentAction, setCurrentAction] = useState<"deploy" | "destroy" | null>(() => {
+  const [currentAction, setCurrentAction] = useState<
+    "deploy" | "destroy" | null
+  >(() => {
     if (typeof window === "undefined") return null;
-    return sessionStorage.getItem(`currentAction:${diagramId}`) as "deploy" | "destroy" | null;
+    return sessionStorage.getItem(`currentAction:${diagramId}`) as
+      | "deploy"
+      | "destroy"
+      | null;
   });
 
   const [showSaved, setShowSaved] = useState(false);
@@ -147,7 +195,8 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
   }, [taskArn, diagramId]);
 
   useEffect(() => {
-    if (currentAction) sessionStorage.setItem(`currentAction:${diagramId}`, currentAction);
+    if (currentAction)
+      sessionStorage.setItem(`currentAction:${diagramId}`, currentAction);
     else sessionStorage.removeItem(`currentAction:${diagramId}`);
   }, [currentAction, diagramId]);
 
@@ -204,10 +253,7 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
       if (targetLabel.includes("api gateway")) return false;
       if (sourceLabel.includes("dynamodb")) return false;
       if (sourceLabel.includes("s3")) return false;
-      if (
-        sourceLabel.includes("lambda") &&
-        targetLabel.includes("api gateway")
-      )
+      if (sourceLabel.includes("lambda") && targetLabel.includes("api gateway"))
         return false;
       if (sourceLabel.includes("ec2") && targetLabel.includes("api gateway"))
         return false;
@@ -331,7 +377,16 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
     markClean(diagramId);
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 2000);
-  }, [token, saveM, projectId, diagramId, editor?.name, nodes, edges, markClean]);
+  }, [
+    token,
+    saveM,
+    projectId,
+    diagramId,
+    editor?.name,
+    nodes,
+    edges,
+    markClean,
+  ]);
 
   const onDeploy = useCallback(async () => {
     if (!orgId || !awsId) return;
@@ -376,9 +431,40 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
       <div className="flex h-full w-full">
         <Palette isReadOnly={isReadOnly} />
 
-        <div className="relative flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-border bg-card p-3">
+            <TopNav
+              diagramName={name}
+              onNameChange={(n) => setName(diagramId, n)}
+              onSave={onSave}
+              onDeploy={onDeploy}
+              onDestroy={onDestroy}
+              isDeploying={isDeploying}
+              isDestroying={isDestroying}
+              onBack={onBack}
+              dirty={dirty}
+              isSaving={isSaving}
+              saveDisabledReason={saveDisabledReason}
+              previewControl={
+                <TerraformPreview
+                  key={diagramId}
+                  token={token}
+                  projectId={projectId}
+                  diagramId={diagramId}
+                  disabled={dirty || isSaving || isLoading}
+                  hasResources={nodes.length > 0}
+                />
+              }
+            />
+          </div>
           <ReactFlow
-            colorMode="dark"
+            className="min-h-0 flex-1"
+            fitView
+            fitViewOptions={{ padding: 0.3, maxZoom: 0.9 }}
+            defaultEdgeOptions={{
+              style: { stroke: "var(--primary)", strokeWidth: 2 },
+            }}
+            colorMode={theme}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
@@ -394,33 +480,23 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
             nodesConnectable={!isReadOnly}
             elementsSelectable={!isReadOnly}
           >
-            <Panel position="top-left" className="w-full pr-5">
-              <TopNav
-                diagramName={name}
-                onNameChange={(n) => setName(diagramId, n)}
-                onSave={onSave}
-                onDeploy={onDeploy}
-                onDestroy={onDestroy}
-                isDeploying={isDeploying}
-                isDestroying={isDestroying}
-                onBack={onBack}
-                dirty={dirty}
-                isSaving={isSaving}
-                saveDisabledReason={saveDisabledReason}
-                previewControl={
-                  <TerraformPreview
-                    key={diagramId}
-                    token={token}
-                    projectId={projectId}
-                    diagramId={diagramId}
-                    disabled={dirty || isSaving || isLoading}
-                    hasResources={nodes.length > 0}
-                  />
-                }
-              />
-            </Panel>
-
+            {nodes.length === 0 && !isLoading && (
+              <Panel
+                position="top-center"
+                className="!top-12 pointer-events-none max-w-sm rounded-xl border border-primary/20 bg-card/95 p-6 text-center shadow-xl"
+              >
+                <h2 className="text-lg font-semibold text-foreground">
+                  Build your cloud architecture
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Drag your first resource from the left. Connect resources,
+                  configure them, then save and preview your Terraform before
+                  deploying.
+                </p>
+              </Panel>
+            )}
             <Background
+              color="var(--canvas-dot)"
               variant={BackgroundVariant.Dots}
               gap={20}
               size={1.5}
@@ -435,21 +511,21 @@ export default function DiagramEditor({ projectId, diagramId, }: { projectId: st
 
           {isLoading && (
             <div className="absolute inset-0 grid place-items-center bg-black/40">
-              <div className="rounded-lg bg-neutral-900 px-4 py-2 text-sm">
+              <div className="rounded-lg bg-card px-4 py-2 text-sm">
                 Loading diagram…
               </div>
             </div>
           )}
 
           {isSaving && (
-            <div className="absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+            <div className="absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground shadow-lg">
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
               Saving…
             </div>
           )}
 
           {showSaved && !isSaving && (
-            <div className="absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-emerald-700 bg-emerald-900/80 px-4 py-2 text-sm text-emerald-100 shadow-lg">
+            <div className="absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-green-700 bg-green-900/80 px-4 py-2 text-sm text-green-100 shadow-lg">
               <svg
                 className="h-4 w-4"
                 fill="none"

@@ -1,6 +1,7 @@
 "use client";
+import ThemeToggle from "@/components/common/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Rocket, Save, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -105,77 +106,88 @@ export default function TopNav({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4 px-5 py-5">
-        <div className="min-w-0">
-          {!isEditing ? (
-            <button
-              type="button"
-              disabled={!!nameDisabled}
-              onClick={startEdit}
-              className={[
-                "h-10 max-w-[420px] truncate rounded-lg border border-slate-800 bg-slate-950/70 px-4",
-                "text-sm font-semibold text-slate-100 shadow-lg backdrop-blur-sm",
-                "transition-colors hover:bg-slate-900/70",
-                "disabled:cursor-not-allowed disabled:opacity-60",
-              ].join(" ")}
-              title="Click to rename"
-            >
-              {diagramName || "Untitled diagram"}
-            </button>
-          ) : (
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commit();
-                if (e.key === "Escape") cancel();
-              }}
-              className={[
-                "h-10 w-[min(420px,60vw)] rounded-lg border border-slate-800 bg-slate-950/70 px-4",
-                "text-sm font-semibold text-slate-100 shadow-lg backdrop-blur-sm outline-none",
-                "focus:border-slate-700",
-              ].join(" ")}
-              placeholder="Diagram name"
-            />
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-1">
+        <div className="flex min-w-0 items-center gap-3">
           <Button
             onClick={handleBackClick}
-            className="h-10 rounded-lg border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-white/10"
+            className="h-9 border border-border bg-card text-foreground hover:bg-secondary"
           >
-            ← Back
+            <ArrowLeft className="h-4 w-4" /> Back
           </Button>
+          <div className="min-w-0">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary-text)]">
+              Architecture editor
+            </p>
+            {!isEditing ? (
+              <button
+                type="button"
+                disabled={!!nameDisabled}
+                onClick={startEdit}
+                className={[
+                  "h-10 max-w-[min(280px,45vw)] truncate rounded-full border border-border bg-background px-4",
+                  "font-sans text-xl text-foreground",
+                  "transition-colors hover:bg-secondary",
+                  "disabled:cursor-not-allowed disabled:opacity-60",
+                ].join(" ")}
+                title="Click to rename"
+              >
+                {diagramName || "Untitled diagram"}
+              </button>
+            ) : (
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commit();
+                  if (e.key === "Escape") cancel();
+                }}
+                className={[
+                  "h-10 w-[min(420px,60vw)] rounded-full border border-border bg-background px-4",
+                  "font-sans text-xl text-foreground outline-none",
+                  "focus:border-border",
+                ].join(" ")}
+                placeholder="Diagram name"
+              />
+            )}
+          </div>
+        </div>
 
+        <div
+          role="group"
+          aria-label="Diagram actions"
+          className="flex flex-wrap items-center gap-2"
+        >
           <Button
             onClick={onSave}
             disabled={!canSave || isDeploying || isDestroying}
             title={saveDisabledReason ?? undefined}
             className={[
-              "h-10 px-6 rounded-lg font-semibold shadow-lg text-white",
+              "h-10 px-6 rounded-full font-medium text-foreground",
               canSave
-                ? "bg-gradient-to-br from-teal-600 to-blue-600 hover:opacity-90"
-                : "bg-white/10 text-white/60 cursor-not-allowed",
+                ? "border border-primary/40 bg-primary/10 text-[var(--primary-text)] hover:bg-primary/20"
+                : "bg-muted text-muted-foreground cursor-not-allowed",
             ].join(" ")}
           >
-            {isSaving ? "Saving…" : dirty ? "Save" : "Saved"}
+            <Save className="h-4 w-4" />
+            {isSaving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </Button>
 
           {previewControl}
+          <ThemeToggle />
 
           <Button
             onClick={onDeploy}
             disabled={canSave || isDeploying || isDestroying}
             className={[
-              "h-10 px-6 rounded-lg font-semibold shadow-lg text-white",
+              "h-10 px-6 rounded-full font-medium text-foreground",
               isDeploying
-                ? "bg-white/10 text-white/60 cursor-not-allowed"
-                : "bg-gradient-to-br from-emerald-600 to-green-600 hover:opacity-90",
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary !text-primary-foreground hover:bg-primary",
             ].join(" ")}
           >
+            <Rocket className="h-4 w-4" />
             {isDeploying ? "Deploying…" : "Deploy"}
           </Button>
 
@@ -183,10 +195,10 @@ export default function TopNav({
             onClick={handleDestroyClick}
             disabled={canSave || isDeploying || isDestroying}
             className={[
-              "h-10 px-6 rounded-lg font-semibold shadow-lg text-white",
+              "h-10 px-6 rounded-full font-medium text-foreground",
               isDestroying
-                ? "bg-white/10 text-white/60 cursor-not-allowed"
-                : "bg-gradient-to-br from-red-600 to-rose-600 hover:opacity-90",
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "ml-2 border border-red-400/30 bg-transparent !text-red-700 dark:text-red-300 hover:bg-red-500/100/10",
             ].join(" ")}
           >
             {isDestroying ? "Destroying…" : "Destroy"}
@@ -200,28 +212,29 @@ export default function TopNav({
           onClick={() => setShowDestroyConfirm(false)}
         >
           <div
-            className="mx-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-start gap-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-800/50 bg-red-900/30">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-800/50 bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
               </div>
               <div>
-                <h3 className="mb-1 text-base font-semibold text-white">
+                <h3 className="mb-1 text-base font-semibold text-foreground">
                   Destroy deployment
                 </h3>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   Are you sure you want to destroy{" "}
-                  <span className="font-medium text-white">
+                  <span className="font-medium text-foreground">
                     &quot;{diagramName || "Untitled diagram"}&quot;
                   </span>
-                  ? This will tear down all deployed infrastructure and cannot be undone.
+                  ? This will tear down all deployed infrastructure and cannot
+                  be undone.
                 </p>
               </div>
               <button
                 onClick={() => setShowDestroyConfirm(false)}
-                className="ml-auto flex-shrink-0 text-slate-500 transition-colors hover:text-slate-300"
+                className="ml-auto flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -230,13 +243,13 @@ export default function TopNav({
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDestroyConfirm(false)}
-                className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700"
+                className="h-9 rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDestroy}
-                className="h-9 rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-500"
+                className="h-9 rounded-lg bg-red-600 px-4 text-sm font-medium text-foreground transition-colors hover:bg-red-500/100"
               >
                 Destroy
               </button>
@@ -251,20 +264,20 @@ export default function TopNav({
           onClick={() => setShowLeaveConfirm(false)}
         >
           <div
-            className="mx-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-start gap-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-800/50 bg-amber-900/30">
-                <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-800/50 bg-amber-500/10">
+                <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
               </div>
               <div>
-                <h3 className="mb-1 text-base font-semibold text-white">
+                <h3 className="mb-1 text-base font-semibold text-foreground">
                   Leave without saving?
                 </h3>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   You have unsaved changes in{" "}
-                  <span className="font-medium text-white">
+                  <span className="font-medium text-foreground">
                     &quot;{diagramName || "Untitled diagram"}&quot;
                   </span>
                   . If you leave now, your changes will be lost.
@@ -272,7 +285,7 @@ export default function TopNav({
               </div>
               <button
                 onClick={() => setShowLeaveConfirm(false)}
-                className="ml-auto flex-shrink-0 text-slate-500 transition-colors hover:text-slate-300"
+                className="ml-auto flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -281,13 +294,13 @@ export default function TopNav({
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowLeaveConfirm(false)}
-                className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700"
+                className="h-9 rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 Stay
               </button>
               <button
                 onClick={handleConfirmLeave}
-                className="h-9 rounded-lg bg-amber-600 px-4 text-sm font-medium text-white transition-colors hover:bg-amber-500"
+                className="h-9 rounded-lg bg-amber-600 px-4 text-sm font-medium text-foreground transition-colors hover:bg-amber-500/100"
               >
                 Leave
               </button>

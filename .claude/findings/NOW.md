@@ -8,6 +8,8 @@ First prove System A: test it locally through A2 (`backend/devserver`), fix what
 
 ## Where it stands
 
+- UI experiment (2026-11-13): on `experiment/user-interfaces`, the latest palette replaces blue with pale green, retaining black/white surfaces and neutral grey dark mode. The Re-CL logo is now a minimal SVG.js-generated Re / CL monogram with four custom paths and no font dependency, checked at 24/40/64/240 pixels. Buttons and the Re-CL logo are pale green; light-mode accent text uses a darker green for contrast. Re-Clutter branding, simple login and persisted light/dark mode remain. ADR-013 records the presentation exception. Type-check and webpack build pass; lint has 0 errors and 6 existing warnings. Browser checks verify logo, title and both login themes. Earlier theme tests and integration checks passed in this experiment.
+
 - Work happens in the fork (`origin`, `FayzanT/re-clutter`) and merges by pull request into the client's `Alberta2514640/clutter` (`upstream`). The harness, docs, design, devserver and Terraform preview are in this branch.
 - The design now follows the team's plan (`docs/architecture/system-b-team-plan/`): Option 1, build B next to A and touch A only at named seams (ADR-006); B1 first, B2 later (ADR-007); the General connector first (ADR-008).
 - Neither PatriCloud nor TierHive has a public API today. Patrii: REST API and Terraform provider "coming soon" (`docs/research/patricloud/2026-10-26-patricloud-research.md`). TierHive: an alpha NAT VPS host whose API ships with its beta, "later in 2026 or early 2027" (`docs/research/tierhive/2026-10-30-tierhive-research.md`). Both connectors are blocked; General is not.

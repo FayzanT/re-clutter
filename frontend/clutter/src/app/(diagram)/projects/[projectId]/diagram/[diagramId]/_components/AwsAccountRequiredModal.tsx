@@ -24,25 +24,25 @@ export default function AwsAccountRequiredModal({
 
   return (
     <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-amber-500/30 bg-neutral-900 p-6 shadow-2xl">
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-amber-500/30 bg-card p-6 shadow-2xl">
         <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-full bg-amber-500/15 p-2">
-            <AlertTriangle className="h-5 w-5 text-amber-400" />
+          <div className="rounded-full bg-amber-500/100/15 p-2">
+            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-foreground">
               AWS account required
             </h2>
-            <p className="mt-1 text-sm text-slate-300">
+            <p className="mt-1 text-sm text-foreground">
               You need to link an AWS account before using this diagram editor.
             </p>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">
+        <div className="rounded-lg border border-border bg-card p-3 text-sm text-foreground">
           Go to{" "}
-          <span className="font-medium text-white">
+          <span className="font-medium text-foreground">
             Settings → Organization → AWS Account
           </span>{" "}
           to connect your AWS account.
@@ -50,7 +50,7 @@ export default function AwsAccountRequiredModal({
 
         {/* NODE_ENV stays inline so a production build drops this block. */}
         {process.env.NODE_ENV === "development" && isLocalDevApi && linkFakeAccountFailed && (
-          <p role="alert" className="mt-3 text-sm text-red-300">
+          <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">
             Could not link a fake account. Check the gateway log.
           </p>
         )}
@@ -61,7 +61,7 @@ export default function AwsAccountRequiredModal({
               type="button"
               onClick={onLinkFakeAccount}
               disabled={isLinkingFakeAccount}
-              className="rounded-lg border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-300 transition hover:bg-amber-500/100/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLinkingFakeAccount ? "Linking…" : "Link fake account"}
             </button>
@@ -70,7 +70,7 @@ export default function AwsAccountRequiredModal({
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-card"
           >
             Back
           </button>
@@ -78,7 +78,7 @@ export default function AwsAccountRequiredModal({
           <button
             type="button"
             onClick={onGoToSettings}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary"
           >
             Link AWS account
           </button>

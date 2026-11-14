@@ -35,8 +35,8 @@ function Notice({ tone, onRetry, children }: {
   children: React.ReactNode;
 }) {
   const colors = tone === "warning"
-    ? "border-amber-700 bg-amber-950/40 text-amber-100"
-    : "border-slate-700 bg-slate-900 text-slate-200";
+    ? "border-amber-700 bg-amber-500/10 text-amber-100"
+    : "border-border bg-card text-foreground";
   return (
     <div role={tone === "warning" ? "alert" : "status"} className={`mt-5 rounded-lg border p-4 text-sm ${colors}`}>
       {children}
@@ -154,11 +154,11 @@ function PreviewBody({ token, projectId, diagramId, hasResources }: {
           </div>
           <pre
             aria-label={selected}
-            className="max-h-[50vh] overflow-auto rounded-lg border border-slate-800 bg-black/40 p-4 text-xs leading-6"
+            className="max-h-[50vh] overflow-auto rounded-lg border border-border bg-secondary p-4 text-xs leading-6"
           >
             <code>{files[selected] || "No output in this file."}</code>
           </pre>
-          <p className="mt-3 text-xs text-slate-400">
+          <p className="mt-3 text-xs text-muted-foreground">
             {status && `Last generation finished ${new Date(status.finishedAt).toLocaleString()}. `}
             Uses the existing AWS templates. The AWS region variable and any Lambda code packages must be supplied separately before deployment.
           </p>
@@ -189,7 +189,7 @@ export default function TerraformPreview({ token, projectId, diagramId, disabled
         onClick={show}
         disabled={disabled || !token}
         title={disabled ? "Save the diagram before previewing Terraform" : "See the Terraform generated from your saved diagram"}
-        className="h-10 rounded-lg border border-slate-600 bg-slate-900 px-5 text-white hover:bg-slate-800"
+        className="h-10 rounded-lg border border-border bg-card px-5 text-foreground hover:bg-card"
       >
         Preview Terraform
       </Button>
@@ -197,12 +197,12 @@ export default function TerraformPreview({ token, projectId, diagramId, disabled
         ref={dialog}
         onClose={() => setOpen(false)}
         aria-labelledby="terraform-preview-title"
-        className="nowheel nopan nodrag m-auto max-h-[90vh] w-[min(1100px,95vw)] rounded-xl border border-slate-700 bg-slate-950 p-6 text-slate-100 shadow-2xl backdrop:bg-black/70"
+        className="nowheel nopan nodrag m-auto max-h-[90vh] w-[min(1100px,95vw)] rounded-xl border border-border bg-card p-6 text-foreground shadow-2xl backdrop:bg-black/70"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="terraform-preview-title" className="text-lg font-semibold">Terraform preview</h2>
-            <p className="mt-1 text-sm text-slate-400">Generated from your saved diagram. Nothing is deployed.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Generated from your saved diagram. Nothing is deployed.</p>
           </div>
           <Button autoFocus onClick={() => dialog.current?.close()} variant="outline">Close</Button>
         </div>

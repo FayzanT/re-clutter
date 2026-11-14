@@ -1,26 +1,27 @@
 "use client";
-
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-interface DashboardHeaderProps {
-  userName?: string;
-}
-
-export default function DashboardHeader({ userName }: DashboardHeaderProps) {
-  const router = useRouter();
-
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+export default function DashboardHeader({ userName }: { userName?: string }) {
   return (
-    <div className="flex items-center justify-between mb-8">
+    <section className="dashboard-welcome">
       <div>
-        <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-400">{userName || "Your Organization"}</p>
+        <p className="section-label">WORKSPACE OVERVIEW</p>
+        <h1>
+          Your cloud, <span>in focus.</span>
+        </h1>
+        <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
+          {userName ? `Welcome back, ${userName.split(" ")[0]}. ` : ""}Pick up a
+          project, shape an architecture, or start with a clean canvas.
+        </p>
       </div>
-      <Button onClick={() => router.push("/projects/new")} className="bg-teal-500 hover:bg-teal-600 flex items-center gap-2">
-        <Plus className="w-4 h-4" />
-        New Project
-      </Button>
-    </div>
+      <div className="shrink-0">
+        <Button asChild size="lg">
+          <Link href="/projects/new">
+            Create a project <ArrowUpRight />
+          </Link>
+        </Button>
+      </div>
+    </section>
   );
 }

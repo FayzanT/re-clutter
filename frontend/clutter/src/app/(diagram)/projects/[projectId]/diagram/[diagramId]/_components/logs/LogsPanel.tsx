@@ -84,7 +84,7 @@ export default function LogsPanel({
       <div className="flex justify-end pr-6">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2.5 rounded-t-lg border border-b-0 border-white/10 bg-neutral-900 px-5 py-2.5 text-sm text-slate-400 select-none transition-colors hover:text-slate-200 cursor-pointer"
+          className="flex items-center gap-2.5 rounded-t-lg border border-b-0 border-border bg-card px-5 py-2.5 text-sm text-muted-foreground select-none transition-colors hover:text-foreground cursor-pointer"
         >
           <svg
             width="14"
@@ -104,12 +104,12 @@ export default function LogsPanel({
           Deploy Logs
           {taskArn &&
           (isComplete ? (
-            <span className="flex items-center gap-1 text-emerald-400 text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="flex items-center gap-1 text-green-700 dark:text-green-300 text-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
               {taskStatus || "Complete"}
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-amber-400 text-xs">
+            <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300 text-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
               {taskStatus || "Live"}
             </span>
@@ -119,26 +119,26 @@ export default function LogsPanel({
 
       <div
         ref={panelRef}
-        className={`overflow-hidden border-t border-white/10 bg-neutral-900 ${
+        className={`overflow-hidden border-t border-border bg-card ${
           !isResizing ? "transition-all duration-300" : ""
         }`}
         style={{ height: open ? panelHeight : 0 }}
       >
         <div
           onMouseDown={startResize}
-          className="flex h-2 cursor-ns-resize items-center justify-center bg-transparent hover:bg-white/5"
+          className="flex h-2 cursor-ns-resize items-center justify-center bg-transparent hover:bg-muted/50"
           title="Drag to resize"
         >
-          <div className="h-1 w-12 rounded-full bg-white/10" />
+          <div className="h-1 w-12 rounded-full bg-muted" />
         </div>
 
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-white/10 px-4">
+        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-4">
           {(["live", "files"] as LogsTab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`rounded px-3 py-1 text-xs capitalize transition-colors ${
-                tab === t ? "bg-white/10 text-slate-100" : "text-slate-500 hover:text-slate-300"
+                tab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t === "live" ? "Live" : "Log Files"}
