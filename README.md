@@ -2,7 +2,7 @@
 
 Clutter is a drag-and-drop canvas for cloud architecture. You draw a diagram (a Lambda, an S3 bucket, an EC2 server, with lines between them), and Clutter turns it into Terraform and Ansible and runs it inside your own cloud account.
 
-It began as a University of Calgary capstone (team 500-MM-3, 2025 to 2026) for Alberta 2514640 Inc. That version works with AWS only. A previous capstone team built that version; we are the new team, extending it so a diagram can deploy to other targets, such as PatriCloud and TierHive, through an adapter layer.
+It began as a University of Calgary capstone (team 500-MM-3, 2025 to 2026) for Alberta 2514640 Inc. That version works with AWS only. A previous capstone team built that version; we are the new team, extending it into one hosted product where users link their own clouds and deploy one diagram to any of them: AWS, OpenStack (and Patrii Cloud once it opens), and more over time, through an adapter layer.
 
 This page gets you from a fresh clone to a working setup, and shows where everything lives. Read it once, top to bottom.
 
@@ -10,40 +10,31 @@ This page gets you from a fresh clone to a working setup, and shows where everyt
 
 | | |
 | --- | --- |
-| **System A** (Clutter as built, AWS only) | Complete and tested by the capstone team. Its AWS deployment has been torn down. It runs locally through `backend/devserver`, except the parts that need AWS (deploy and running Ansible). |
-| **System B** (the adapter layer) | Designed, not built. Phase 0 (security fixes A and B share) comes first. |
-| **Local checks** | Go build, frontend type-check, lint and build, Terraform validate and the database schema all pass. Two Go test packages fail (known). |
+| **System A** (Clutter as built, AWS only) | Complete and tested by the capstone team. Its AWS hosting has been torn down. It runs locally through `backend/devserver`, except the parts that need AWS (deploy and running Ansible). |
+| **System B** (the adapter layer) | Designed and checked against reality (2026-11-13), not built. The build order is `docs/architecture/implementation-plan.md`; stage 1 (security fixes A and B share) comes first. |
+| **Local checks** | Results and expected output are in `backend/README.md` and `frontend/clutter/README.md`. Two Go test packages fail before any change (known). |
 | **Open defects** | Several security defects in A, some critical. Listed in `.claude/findings/NOW.md`. Read that before you build on any A code path. |
 
 ## The two systems
 
 **A: Clutter today.** A Next.js canvas, 34 Go Lambdas (32 API routes, an authorizer and a queue consumer) behind AWS API Gateway, Postgres on Supabase, S3, and two Fargate runners: one runs Terraform in the customer's AWS account, one runs Ansible on the customer's EC2 servers over SSM. Full description: `docs/architecture/system-a-as-built.md`.
 
-**B: the adapter layer.** New code beside A, not a rewrite of A. B has its own API, a connector interface, and one connector per target: General (custom) first, then PatriCloud and TierHive. Full design: `docs/architecture/system-b-adapter-layer.md`. The team's original figures are in `docs/architecture/system-b-team-plan/`.
+**B: the adapter layer.** New code beside A, not a rewrite of A. B has its own API, a connector interface, and connectors: General first (one connector per approved Terraform provider, OpenStack first, DigitalOcean next), then AWS (reusing A's templates). PatriCloud and TierHive arrive when they have APIs, through General if they offer a standard Terraform provider or OpenStack endpoints. Full design: `docs/architecture/system-b-adapter-layer.md`. The team's original figures are in `docs/architecture/system-b-team-plan/`.
 
-The names everyone uses:
+### The whole story in one place
 
-| Name | Means |
-| --- | --- |
-| C | the whole Clutter app: A + A2 + B |
-| A | Clutter as built (AWS). Changed only at named seams, for bug and security fixes, and by recorded decision. |
-| A2 | the extension that makes A run and test without AWS (`backend/devserver`). It wraps A from outside, with one exception (the local-only **Link fake account** button). For the team, not end users. |
-| B | the adapter layer we are building |
-| B0 | B run by us as a hosted service (SaaS), built first |
-| B1 | B as a service anyone can run on their own servers, with entity connectors |
-| B2 | B run inside a company, with instance connectors (later) |
-| 2.1, 2.2 | where a diagram builds: 2.1 the user's own accounts, which they link to Clutter (what we build); 2.2 accounts Clutter owns and resells (not now) |
-| connection, deployment | a linked cloud account; one diagram deployed to one connection. One diagram can have several deployments. |
-| world 1, world 2 | Clutter's own cloud account, and the user's account where their diagram gets built (`docs/architecture/system-a-as-built.md` § The two worlds) |
-| connector | the code for one target type (General, PatriCloud, TierHive). An *entity connector* is one we write for a target type (B1); an *instance connector* is one a company builds for its own setup (B2). |
-| PatriCloud | our working name for Patrii Cloud (patrii.cloud), a Canadian cloud; the same thing |
-| General | the first connector: Terraform with any provider the customer names, or servers they already have over SSH (the exact scope is open question 1 in `NOW.md`) |
-| instance | one company's configured setup of a connector |
-| seam | one of the four places B touches A: the target choice screen, shared sign-in, the shared database, and security fixes |
-| phase 0 | the first work item: security fixes on the parts A and B share (listed in `.claude/findings/NOW.md`) |
-| ADR | architecture decision record: one entry in `docs/decisions.md` |
+![World 1 and world 2, who runs Clutter, and the copies of it](docs/architecture/figures/clutter-worlds.png)
 
-The full definitions are in `docs/architecture/system-b-adapter-layer.md` § Names. AWS terms you will meet in A: Lambda (a function AWS runs on request), API Gateway (AWS's HTTP front door), Fargate (AWS running a container on demand), STS (AWS issuing short-lived credentials for another account's role), SSM (AWS running a command on a server without SSH), S3 (file storage), SQS (a queue). The Supabase webhook is a trigger configured in the database service, outside this repo.
+- **What the user sees:** one hosted product. They sign in, link the clouds they already have on a Connections page, draw one diagram in building blocks (VM, network, firewall, volume, bucket, function, table, HTTP API), and deploy it to any linked cloud. Each cloud it runs on is a **deployment**, with its own settings, state and history; a cloud that cannot build a block says so, and the user leaves that block out of that deployment.
+- **World 1 and world 2:** world 1 is Clutter itself (website, APIs, database, runners), run by us in the client's AWS account. World 2 is the user's own cloud accounts, where diagrams are built (**2.1**). Clutter owning the clouds and reselling them (**2.2**) is not in scope.
+- **The systems:** **C = A + A2 + B.** A is Clutter as the previous team built it (AWS only); it keeps serving existing AWS diagrams. A2 runs A, and B beside it, on a laptop with no AWS. B is the adapter layer: one interface, one connector per kind of cloud (General's connectors, one per approved Terraform provider, and AWS).
+- **Who runs world 1:** **B0** (us, as SaaS) is being built. **B1** (a customer runs Clutter on their own servers) comes later with the same connectors; **B2** (inside a company, with its own connectors) is later still, and a separate decision.
+- **How B's code relates to A's:** Option 1, beside A, reusing A's sign-in, database and template files. Options 2 and 3 are fallbacks and a later destination.
+- **Where it runs for us:** local (a laptop, no accounts) and one cloud environment in `ca-central-1`. Everything before the cloud is built and tested locally.
+
+This is a summary for new people. The design (`docs/architecture/system-b-adapter-layer.md`) owns these facts, and its § Names defines every name the team uses: C, A, A2, B, B0, B1, B2, world 1, world 2, 2.1, 2.2, connector, General, connection, deployment, building blocks, seam, phase 0 and stage. An ADR is one architecture decision record in `docs/decisions.md`.
+
+AWS terms you will meet in A: Lambda (a function AWS runs on request), API Gateway (AWS's HTTP front door), Fargate (AWS running a container on demand), STS (AWS issuing short-lived credentials for another account's role), SSM (AWS running a command on a server without SSH), S3 (file storage), SQS (a queue). The Supabase webhook is a trigger configured in the database service, outside this repo.
 
 ## What is in the repo
 
@@ -64,13 +55,16 @@ docs/
   README.md         the map: which file owns which fact
   architecture/
     system-a-as-built.md       A: what exists today
-    system-b-adapter-layer.md  B: what we are building, and in what order
+    system-b-adapter-layer.md  B: what we are building and why
+    implementation-plan.md     the build order: stages, tests, "done when"
+    figures/                   clutter-worlds.png, the whole picture in one image
     environments.md            local vs cloud: what differs and what each needs
     system-b-team-plan/        the team's own B plan: figures, PDF and the written explanation
   decisions.md      every decision and why (ADR-001 onward; ADR means architecture decision record)
   research/
     patricloud/     dated research on PatriCloud (and a second research run)
     tierhive/       dated research on TierHive
+    openstack/      DevStack on a laptop, and one diagram rendered for two clouds
   old-capstone/  the previous capstone team's final report (PDF and markdown) and backend tutorial
 .claude/            the Claude Code setup (its README says what each part is)
   findings/NOW.md   the status board: next tasks, open defects, open questions (everyone reads this)
@@ -197,12 +191,14 @@ Read in this order:
 
 1. This page.
 2. `docs/architecture/system-a-as-built.md`: what A does, what the capstone delivered, and where the final report is wrong about the code.
-3. `docs/architecture/system-b-adapter-layer.md`: what we are building and in what order.
-4. `.claude/findings/NOW.md`: what is in progress, the open defects, the open questions.
-5. `docs/decisions.md`: why things are the way they are.
-6. `CLAUDE.md`: skim it. It is written for AI agents, but its "What you will get wrong" list is the fastest way to learn the traps.
+3. `docs/architecture/figures/clutter-worlds.png`: the whole product in one picture.
+4. `docs/architecture/system-b-adapter-layer.md`: what we are building and why.
+5. `docs/architecture/implementation-plan.md`: the order it gets built in, and how each stage is tested.
+6. `.claude/findings/NOW.md`: what is in progress, the open defects, the open questions.
+7. `docs/decisions.md`: why things are the way they are.
+8. `CLAUDE.md`: skim it. It is written for AI agents, but its "What you will get wrong" list is the fastest way to learn the traps.
 
-Then pick a task from `NOW.md` § Next. Tell the team which one you are taking, so two people do not take the same one. A good first task is the last phase 0 item (make the Go tests pass offline): it is small, it touches no security path, and it teaches you the backend and its tests.
+Then pick a task from `NOW.md` § Next. Tell the team which one you are taking, so two people do not take the same one. A good first task is phase 0 item 6 (make the Go tests pass offline): it is small, it touches no security path, and it teaches you the backend and its tests.
 
 ## How we work
 
@@ -214,10 +210,10 @@ Then pick a task from `NOW.md` § Next. Tell the team which one you are taking, 
   3. A decision you made is in `docs/decisions.md`.
 - **Decisions.** An ADR starts as "proposed" and becomes "accepted" when its pull request is approved by the team (and the client, for scope or hosting). Write it before the change it decides.
 - **Commits.** Say what changed and why. One commit per finished change, after the checks pass.
-- **Changing A.** New local and test abilities go in A2. Any other change to A is a decision: write it in `docs/decisions.md` first.
+- **Changing A.** New local and test abilities go in A2. Stage 1's changes to A are already decided (phase 0, and the moves in ADR-006's revision). Any other change to A is a decision: write it in `docs/decisions.md` first.
 - **Security rules.** Read the root `CLAUDE.md` § Boundaries before touching a handler or a template.
 - **Docs.** Each fact has one owner doc (`docs/README.md` has the map). When code changes a fact, update its owner in the same pull request. When a doc and the code disagree, the code wins and the doc gets fixed.
-- **Adding a cloud resource.** Follow `.claude/skills/add-cloud-resource/SKILL.md`, even without Claude Code. It lists every place a resource is defined.
+- **Adding a cloud resource or a new cloud.** Follow `.claude/skills/add-cloud-resource/SKILL.md`, even without Claude Code. It lists every place a resource is defined, and how a new cloud joins as a General connector (`docs/architecture/system-b-adapter-layer.md` § General).
 
 ### Claude Code
 

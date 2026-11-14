@@ -11,6 +11,8 @@ As it stands on 2026-11-04, from a read of the code and a local run of every rou
 
 ## The two worlds
 
+This section describes A's case, where world 2 is always an AWS account. The names for every cloud are defined in `system-b-adapter-layer.md` § Names.
+
 A is a hosted service (SaaS): one copy of Clutter, run for every user. Clutter touches two separate cloud accounts. **World 1** is Clutter's own account: the website, the API, the database and the workers. **World 2** is the user's own account, where the things they draw get built. The user owns and pays for world 2; Clutter only builds there, with access the user grants. A user's diagram is data in world 1; what it builds lives in world 2.
 
 | | World 1: Clutter's account | World 2: the user's account |

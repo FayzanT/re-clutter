@@ -14,20 +14,20 @@ The folder `CLAUDE.md` files hold the traps of their own folders. This skill hol
 3. **One owner per fact.** A region list, a runtime list, a resource's fields and defaults each live in one place and everything else reads it. While the five-place resource definition still exists (`add-cloud-resource`), change all five in the same change. Never fork a value into a `_v2` or suffixed copy; change it in place and delete what is no longer read.
 4. **Secrets come from the environment or a secret store, are checked non-empty at start-up, and are never logged.** A missing secret fails the cold start loudly, not the first request quietly. Never put a connection string, a token or a credential in an error message or a response.
 5. **Errors are returned, not swallowed.** A handler maps errors to the shared response helpers in `generic`; a type assertion on outside data uses the `, ok` form. A panic in a Lambda is a defect.
-6. **A stays as it is; B's core never names a connector.** New target work goes in B (the adapter layer), beside A, not into A's handlers. A is changed only at the named seams (ADR-006): the UI target choice, shared sign-in, the shared database, and security fixes on shared paths. In B, target logic sits behind the connector interface (`docs/architecture/system-b-adapter-layer.md`); core code never switches on a target name, it asks the connector.
+6. **A changes only at its seams; B's core never names a connector.** New target work goes in B (the adapter layer), beside A, not into A's handlers. A is changed only at the named seams (ADR-006, `docs/architecture/system-b-adapter-layer.md` § The seams) and by the stage 1 work in `docs/architecture/implementation-plan.md`. In B, target logic sits behind the connector interface (`docs/architecture/system-b-adapter-layer.md`); core code never switches on a target name, it asks the connector.
 7. **Platform code and customer code are separate.** Code that runs Clutter (platform Terraform, runner images, Lambdas) and code Clutter generates for a customer never share a credential, a bucket prefix or a state file.
 
 ## Go
 
 - One Lambda per folder under `backend/api`, each with its own `main.go`; shared code lives in `backend/api/generic` or a feature's `internal/` package. A copy of shared code inside a handler (as `ansible/run-task` has today) leaves the deployed path untested; import the shared package instead.
-- `gofmt` runs on write (hook) for new files and files already formatted at HEAD. 52 of A's Go files use CRLF line endings: keep them as they are and check `git diff --stat` before committing one. `go vet` must stay clean.
+- `gofmt` runs on write (hook) for new files and files already formatted at HEAD. 52 of A's Go files (87 files in all, root `CLAUDE.md`) use CRLF line endings: keep them as they are and check `git diff --stat` before committing one. `go vet` must stay clean.
 - Unit tests sit beside the code (`*_test.go`) or in `backend/api/tests/<area>`. A test that needs live AWS is an integration test: guard it with a build tag or an env check so `go test ./...` stays meaningful offline.
 - Add a new Lambda to both `build.sh` and `build_linux.sh`, the platform Terraform and `backend/devserver/internal/routes/routes.go` in the same change (`backend/README.md` § Adding a Lambda or a route).
 
 ## Frontend (`frontend/clutter`)
 
 - Next.js 16 App Router and React 19. Check the current docs before using a Next or React API (`ground-before-building`); remembered APIs are often wrong on these majors.
-- Server data goes through the feature folders in `src/lib/features/<feature>/` (`api.ts`, `types.ts`, `keys.ts`, `hooks.ts` with TanStack Query; `uiStore.ts` with Zustand for UI state). A new feature follows the same five-file shape.
+- Server data goes through the feature folders in `src/lib/features/<feature>/` (`api.ts`, `types.ts`, `keys.ts`, `hooks.ts` with TanStack Query; `uiStore.ts` with Zustand for UI state). A new feature follows the same shape (`uiStore.ts` only when it has UI state).
 - Types in `types.ts` mirror the Go response structs; change both together.
 - Every async surface has its loading, error and empty state.
 

@@ -7,7 +7,9 @@ description: The checklist for adding a new canvas resource (a cloud service a u
 
 First decide which system the resource belongs to.
 
-- **A connector in System B** (General, PatriCloud, TierHive, any non-AWS target): the resource is a feature in that connector's manifest, in Go, and nowhere else. B's catalog route, palette and config panel read the manifest. Mark it as-is, extended or new against the standard features (`docs/architecture/system-b-adapter-layer.md`). Do not add it to any of the five A places below.
+- **B's AWS connector:** reuse A's template file if one exists; a new AWS block gets a new `*.tf.tmpl` under `backend/infra/modules/s3/uploads/aws/<service>/` and its own `aws_s3_object` in `backend/infra/modules/s3/main.tf`, plus its entry in the AWS connector's manifest. A's generator, seed, palette and config panel are not touched.
+- **A new cloud, not a new resource:** if an approved Terraform provider reaches it, it is a new General connector (`general-<provider>`): pin the provider, write its manifest, credential spec and verification call, pass the contract tests, add it to the allow-list (`docs/architecture/system-b-adapter-layer.md` § General). It gets a named connector of its own only when no approved provider reaches it.
+- **A connector in System B** (a General connector such as OpenStack, or any other target): the resource is a feature in that connector's manifest, in Go, and nowhere else. B's catalog route, palette and config panel read the manifest. Mark it as-is, extended or new against the standard features (`docs/architecture/system-b-adapter-layer.md`). Do not add it to any of the five A places below.
 - **System A (AWS):** A is changed only at the named seams (ADR-006), so a new AWS resource is a decision; record it in `docs/decisions.md` first. Then follow the rest of this skill.
 
 In A, a resource is defined in five places that must agree. They already drift (the Lambda runtime is `nodejs24.x` in the config panel and `nodejs24` in code upload; the default runtime differs between the seed and the generator). Every A resource change touches all five.
