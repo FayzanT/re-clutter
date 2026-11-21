@@ -42,6 +42,19 @@ npm run typecheck     # no errors
 npm test              # 5 files, 105 tests pass
 ```
 
+### Against the real app
+
+These need the app running (`npm run dev`). Run them from the repo root. The scripts are in `tests/scripts`.
+
+```bash
+backend/collaboration/tests/scripts/run-live-tests.sh   # 45 tests pass
+backend/collaboration/tests/scripts/test-users.sh       # test users for the browser
+```
+
+- `run-live-tests.sh` tests the service with A's real API, real local users and the frontend's own `y-websocket` client. It makes its own users and data and removes them at the end.
+- `test-users.sh` makes four users that stay: A, B and C in the organization "Live Sync Team", and D in "Live Sync Outsider". It also makes a project with a shared building-block diagram (the sample in `test/fixtures`), a second one and an old AWS diagram, plus a diagram for D. Running it again keeps what exists and signs fresh logins, which last 24 hours. `--reset` puts the team's diagrams back to how they started, and `--remove` deletes it all.
+- To sign a browser profile in as one of the users, open `http://localhost:3000`, open the console, and paste that user's `*-signin.js` file. The script prints where the files are, in `backend/devserver/.state/live-sync-users`. The same folder has Playwright storage files for automated browser tests. The files hold login tokens, so never share or commit them. Git ignores `.state`.
+
 ## Settings
 
 All are optional environment variables. A bad value stops the service at start.
