@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Live tests for the sync service against the real local app.
 # Start the app first (npm run dev or npm run dev:backend), then run:
-#   backend/collaboration/tests/scripts/run-live-tests.sh [results.json]
+#   backend/collaboration/test/live/run-live-tests.sh [results.json]
 # It loads the devserver's local secrets the same way smoke.sh does,
 # makes its own test users and data, and removes them at the end.
 set -euo pipefail

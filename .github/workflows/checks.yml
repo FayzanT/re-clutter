@@ -109,7 +109,7 @@ jobs:
       - name: Markdown lint
         run: npx -y markdownlint-cli2@0.18.1 "**/*.md"
       - name: Shellcheck our scripts
-        run: shellcheck -S warning .claude/hooks/*.sh backend/devserver/*.sh backend/devserver/devstack/*.sh backend/infra/*.sh backend/adapter/images/*.sh frontend/build-image.sh
+        run: shellcheck -S warning .claude/hooks/*.sh backend/devserver/*.sh backend/devserver/devstack/*.sh backend/infra/*.sh backend/adapter/images/*.sh frontend/build-image.sh backend/collaboration/test/live/*.sh
       - name: Devserver script checks
         run: backend/devserver/test-scripts.sh
       - name: Deploy script checks

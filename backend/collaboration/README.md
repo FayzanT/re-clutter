@@ -44,11 +44,11 @@ npm test              # 5 files, 105 tests pass
 
 ### Against the real app
 
-These need the app running (`npm run dev`). Run them from the repo root. The scripts are in `tests/scripts`.
+These need the app running (`npm run dev`). Run them from the repo root. The scripts are in `test/live`. Vitest skips them (no file name ends in `.test.ts`), and `npm run typecheck` checks them.
 
 ```bash
-backend/collaboration/tests/scripts/run-live-tests.sh   # 45 tests pass
-backend/collaboration/tests/scripts/test-users.sh       # test users for the browser
+backend/collaboration/test/live/run-live-tests.sh   # 45 tests pass
+backend/collaboration/test/live/test-users.sh       # test users for the browser
 ```
 
 - `run-live-tests.sh` tests the service with A's real API, real local users and the frontend's own `y-websocket` client. It makes its own users and data and removes them at the end.

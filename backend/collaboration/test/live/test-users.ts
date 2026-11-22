@@ -37,7 +37,7 @@ if (!["", "--reset", "--remove"].includes(MODE)) {
   process.exit(2);
 }
 
-const FIXTURE = JSON.parse(readFileSync(new URL("../../test/fixtures/blocks-doc.json", import.meta.url), "utf8"));
+const FIXTURE = JSON.parse(readFileSync(new URL("../fixtures/blocks-doc.json", import.meta.url), "utf8"));
 
 const PEOPLE = [
   { key: "a", name: "Test User A" },

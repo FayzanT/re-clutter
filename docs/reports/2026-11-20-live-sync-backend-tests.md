@@ -45,19 +45,13 @@ The unit tests use a fake A and unsigned tokens. The live tests add what they ca
 - **Real users.** Four users are added to the local database, with tokens signed the same way as the log-in Lambda: A, B and C in one organization, and D in another. There is no invite route, so B and C are added to A's organization in SQL.
 - **The frontend's own client.** The tests use the `y-websocket` 3.0.0 and `yjs` 13.6.27 copies installed in `frontend/clutter`, which the editor will use.
 
-The data is made through A's API as the users: two projects in the shared organization, a building-block diagram holding the shared sample (`test/fixtures/blocks-doc.json`), a second building-block diagram, an old AWS diagram, and D's own project and diagram. Everything is removed at the end.
+The data is made through A's API as the users: two projects in the shared organization, a building-block diagram holding the shared sample (`test/fixtures/blocks-doc.json`), a second building-block diagram, an old AWS diagram, and D's own project and diagram. Everything is removed at the end, even when a run stops partway.
 
-Files:
-
-- `backend/collaboration/tests/scripts/run-live-tests.sh` loads the local secrets the same way `smoke.sh` does, checks that A and the service are up, and runs the tests.
-- `backend/collaboration/tests/scripts/live-tests.ts` holds the tests.
-- `backend/collaboration/tests/scripts/lib.ts` holds the helpers this script and `test-users.sh` share: local logins, SQL and calls to A's API.
-
-Run them again with the app running:
+The scripts are in `backend/collaboration/test/live`, and the service's README says how to run them. Run them again with the app running:
 
 ```bash
 npm run dev            # or npm run dev:backend
-backend/collaboration/tests/scripts/run-live-tests.sh
+backend/collaboration/test/live/run-live-tests.sh
 ```
 
 ## Live test results
@@ -150,6 +144,18 @@ CAP-01 and UP-01 start a second copy of the service on ports 8792 and 8793 with 
 | --- | --- | --- | --- | --- |
 | LOG-01 | The service's log | no token, cookie or diagram content | 3 lines, none of them | pass |
 
+### Cleanup
+
+Added on 2026-11-22 after review. Cleanup finds this run's users by their email pattern and deletes them with their organizations, so it works however far a run got. At the start of each run it also removes users left by earlier runs, but only ones older than 10 minutes, so a run still going is never touched.
+
+| ID | Test | Expected | Actual | Result |
+| --- | --- | --- | --- | --- |
+| CLN-01 | Setup fails partway (A's API unreachable after the users are made) | nothing left behind | "setup failed", then this run's 4 users removed; 0 left | pass |
+| CLN-02 | A leftover user and organization from an earlier run (1 hour old) | removed at the start of the next run | removed; the run in progress was not touched | pass |
+| CLN-03 | Ctrl+C in the middle of the tests | nothing left behind | this run's 4 users and their organizations removed; 0 left | pass |
+| CLN-04 | `test-users.sh`'s users | never touched by this cleanup | its 4 users and 2 organizations still there | pass |
+| CLN-05 | A full run after the change | 45 of 45 pass, nothing left | 45 of 45 pass, 0 left | pass |
+
 ## Test users and data for the browser tests (tasks 1 and 2)
 
 Before this, the local sign-in had one user. `test-users.sh` now makes the people and data the three-user browser tests need, and keeps them until they are removed. It does not change any of the B team's files. Like the smoke test, it adds users in SQL and signs their logins with the devserver's local secret.
@@ -174,7 +180,7 @@ How it was checked (2026-11-20, Node 26.13.1):
 | USR-05 | B signs in with the console snippet in a fresh Chrome profile | lands on the dashboard in "Live Sync Team": 1 project, 3 diagrams, 3 members |
 | USR-06 | A, C and D sign in with the storage files | A and C see "Live Sync Team"; D sees only "Live Sync Outsider" |
 | USR-07 | A opens the shared diagram | B's building-block editor shows the sample's three blocks (web, main, data) and "Saved" |
-| USR-08 | The live tests still pass after the scripts' shared helpers moved to `tests/scripts/lib.ts` | 45 of 45 pass |
+| USR-08 | The live tests still pass after the scripts' shared helpers moved to `test/live/lib.ts` | 45 of 45 pass |
 
 USR-05 to USR-07 used Playwright with the Google Chrome installed on the machine, because Playwright's own Chromium download did not finish here. Each check used a new, empty browser profile.
 

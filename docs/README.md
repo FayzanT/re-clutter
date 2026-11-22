@@ -25,4 +25,5 @@ Each kind of fact has one owner. Change a fact at its owner, in the same change 
 | Outside research (cloud providers, prior art, law) | `docs/research/<target>/<date>-<topic>.md` (`patricloud/`, `tierhive/`, `openstack/`, and `aws/`, which holds the LocalStack research) |
 | Where the current work stands, open defects | `.claude/findings/NOW.md` |
 | A resource's fields and defaults | in A, the generator code (and, drifting from it, the seed SQL and the config panel); in B, each connector's manifest |
+| Dated test reports, for people who will not run the tests | `docs/reports/<date>-*` |
 | The previous capstone team's design and course deliverable | `docs/old-capstone/`: `final-report.pdf` and `.md` (same report; cover dated 2026-04-12, committed 2026-06-08; history, not current; its figures were never committed) and `backend-tutorial.md` (the capstone's backend guide) |

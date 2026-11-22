@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Makes four local test users and their data for the live sync browser tests,
 # and writes each user's sign-in files. Start the app first (npm run dev).
-#   backend/collaboration/tests/scripts/test-users.sh            make what is missing
-#   backend/collaboration/tests/scripts/test-users.sh --reset    also reset the team's diagrams
-#   backend/collaboration/tests/scripts/test-users.sh --remove   delete the users and their data
+#   backend/collaboration/test/live/test-users.sh            make what is missing
+#   backend/collaboration/test/live/test-users.sh --reset    also reset the team's diagrams
+#   backend/collaboration/test/live/test-users.sh --remove   delete the users and their data
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

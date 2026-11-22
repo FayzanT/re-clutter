@@ -24,7 +24,7 @@ const { WebsocketProvider } = front("y-websocket");
 
 const RESULTS = process.env.LIVE_RESULTS ?? "";
 const SERVER_TS = new URL("../../src/server.ts", import.meta.url).pathname;
-const FIXTURE = JSON.parse(readFileSync(new URL("../../test/fixtures/blocks-doc.json", import.meta.url), "utf8"));
+const FIXTURE = JSON.parse(readFileSync(new URL("../fixtures/blocks-doc.json", import.meta.url), "utf8"));
 
 requireDevSecret("live-tests");
 
@@ -81,6 +81,48 @@ interface User {
 }
 
 const sfx = randomUUID().slice(0, 8);
+
+// Every user this script makes has an email like live-sync-a-<run>@clutter.localhost.
+// Cleanup finds them by that pattern, so it works however far a run got.
+// test-users.sh's users (live-sync-a@clutter.localhost) never match it.
+const THIS_RUN = `^live-sync-[a-d]-${sfx}@clutter\\.localhost$`;
+const ANY_RUN = "^live-sync-[a-d]-[0-9a-f]{8}@clutter\\.localhost$";
+
+// Deletes the organizations these users made (their projects, diagrams and
+// memberships go with them) and then the users. Returns how many users it removed.
+// olderThanMinutes leaves recent users alone, so it never touches a run still going.
+function removeTestUsers(pattern: string, olderThanMinutes = 0): number {
+  const users = `SELECT id FROM users WHERE email ~ '${pattern}' AND created_at < now() - interval '${olderThanMinutes} minutes'`;
+  const out = sql(`DELETE FROM organizations WHERE created_by IN (${users});\nDELETE FROM users WHERE id IN (${users});`);
+  return Number(/DELETE (\d+)\s*$/.exec(out)?.[1] ?? 0);
+}
+
+let cleanedUp = false;
+function cleanup(): void {
+  if (cleanedUp) return;
+  cleanedUp = true;
+  for (const x of openClients) {
+    try {
+      x.provider.destroy();
+    } catch {
+      // already gone
+    }
+  }
+  try {
+    const n = removeTestUsers(THIS_RUN);
+    console.log(`\ncleanup: removed this run's ${n} users and their organizations, projects and diagrams`);
+  } catch (err) {
+    console.error("cleanup failed:", err instanceof Error ? err.message : err);
+  }
+}
+
+// Ctrl+C or a kill still cleans up.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    cleanup();
+    process.exit(130);
+  });
+}
 
 function makeUser(letter: string): User {
   const u = { id: randomUUID(), email: `live-sync-${letter}-${sfx}@clutter.localhost`, name: `Live Sync User ${letter.toUpperCase()}` };
@@ -213,6 +255,10 @@ const fixtureName = FIXTURE.name as string;
 
 async function main(): Promise<void> {
   console.log(`live-tests: API ${API}, service ${WS}, run ${sfx}\n`);
+
+  // Runs that crashed before this cleanup existed, or were killed hard, left users behind.
+  const leftovers = removeTestUsers(ANY_RUN, 10);
+  if (leftovers) console.log(`setup: removed ${leftovers} users left by earlier runs, with their data\n`);
 
   // Setup: four users. A, B and C share an organization; D has their own.
   const A = makeUser("a");
@@ -565,19 +611,6 @@ async function main(): Promise<void> {
     return `${text.split("\n").filter(Boolean).length} log lines, none with a token, cookie or diagram content`;
   });
 
-  // ---- Clean up ----
-  for (const x of openClients) {
-    try {
-      x.provider.destroy();
-    } catch {
-      // already gone
-    }
-  }
-  await must("DELETE", `/organization/${org}`, A.token);
-  await must("DELETE", `/organization/${orgD}`, D.token);
-  sql(`DELETE FROM users WHERE id IN ('${A.id}','${B.id}','${C.id}','${D.id}');`);
-  console.log("\ncleanup: removed both organizations (with their projects and diagrams) and the four users");
-
   if (RESULTS) writeFileSync(RESULTS, JSON.stringify({ run: sfx, at: new Date().toISOString(), node: process.version, results }, null, 2));
 }
 
@@ -587,6 +620,8 @@ main()
     process.exitCode = 2;
   })
   .finally(() => {
+    // Runs whether the tests finished, failed or setup stopped partway.
+    cleanup();
     const failed = results.filter((r) => !r.pass).length;
     console.log(`\n${results.length} tests, ${results.length - failed} pass, ${failed} fail`);
     if (failed && !process.exitCode) process.exitCode = 1;
