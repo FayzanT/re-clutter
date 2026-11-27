@@ -1,40 +1,8 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import type { BlocksDocument } from "../diagram/blocksDocument";
 import { canonical, readSavedMark, readShared, savedHash, sizeOf, stableJson } from "./sharedDoc";
-
-// The service's sample diagram, in both formats, with its hash. The service
-// tests its own copy against the same file.
-const fixture = JSON.parse(
-  readFileSync(new URL("../../../../../../backend/collaboration/test/fixtures/blocks-doc.json", import.meta.url), "utf8"),
-) as {
-  name: string;
-  saved: BlocksDocument;
-  shared: { nodes: Record<string, Record<string, unknown>>; edges: Record<string, unknown>; meta: Record<string, unknown> };
-  hash: string;
-};
-
-// docFrom builds a Y.Doc from the toJSON() form of the three maps, the way the
-// service fills a room. Only tests do this; the browser never fills a room.
-function docFrom(shared: { nodes: Record<string, Record<string, unknown>>; edges: Record<string, unknown>; meta: Record<string, unknown> }): Y.Doc {
-  const ydoc = new Y.Doc();
-  ydoc.transact(() => {
-    for (const [id, n] of Object.entries(shared.nodes)) {
-      const node = new Y.Map<unknown>();
-      for (const [k, v] of Object.entries(n)) {
-        if (k !== "fields") node.set(k, v);
-      }
-      const fields = new Y.Map<unknown>();
-      for (const [k, v] of Object.entries((n.fields ?? {}) as Record<string, unknown>)) fields.set(k, v);
-      node.set("fields", fields);
-      ydoc.getMap("nodes").set(id, node);
-    }
-    for (const [id, e] of Object.entries(shared.edges)) ydoc.getMap("edges").set(id, e);
-    for (const [k, v] of Object.entries(shared.meta)) ydoc.getMap("meta").set(k, v);
-  });
-  return ydoc;
-}
+import { docFrom, fixture } from "./testHelpers";
 
 // A diagram with a box size, a name outside ASCII, a self edge and a repeated
 // pair. REF_HASH was computed by the service's savedHash (2026-11-26), so it
