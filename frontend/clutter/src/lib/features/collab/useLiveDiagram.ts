@@ -18,12 +18,13 @@
 // With live sync off, refused or never connected, it does nothing and the
 // editor works alone, exactly as before, for the rest of the page visit.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
 import { fromBlocksDocument, toBlocksDocument, type BlockEdge, type BlockNode } from "../diagram/blocksDocument";
 import { closeAction, collabUrl, FIRST_SYNC_MS, NO_FIRST_SYNC, type LiveState } from "./connection";
-import { mergeEdges, mergeNodes } from "./mirror";
+import { mergeEdges, mergeName, mergeNodes } from "./mirror";
 import { localPresence, peersFrom, type Peer } from "./presence";
 import { EDGES, META, NODES, readSavedMark, readShared, savedHash, type SavedMark } from "./sharedDoc";
 import { applyChanges, LOCAL, writeWhole, type Diagram } from "./writeDoc";
@@ -41,7 +42,7 @@ export type LiveCanvas = {
   name: string;
   setNodes: (f: (cur: BlockNode[]) => BlockNode[]) => void;
   setEdges: (f: (cur: BlockEdge[]) => BlockEdge[]) => void;
-  setName: (name: string) => void;
+  setName: (f: (cur: string) => string) => void;
 };
 
 export type LiveDiagram = {
@@ -78,9 +79,10 @@ export function useLiveDiagram(opts: { diagramId: string; projectId: string; me:
   const [hashes, setHashes] = useState<{ current: string | null; saved: SavedMark | null }>({ current: null, saved: null });
   const [savedDiagram, setSavedDiagram] = useState<Diagram | null>(null);
 
-  // The latest canvas, read by the listeners below.
+  // The latest canvas, read by the listeners below. A layout effect, so it
+  // is current before any network message can be handled after a render.
   const latest = useRef(canvas);
-  useEffect(() => {
+  useLayoutEffect(() => {
     latest.current = canvas;
   });
 
@@ -137,18 +139,27 @@ export function useLiveDiagram(opts: { diagramId: string; projectId: string; me:
     };
 
     // Draw the room on the canvas, and work out whether it is saved.
+    //
+    // The canvas and base must move together, or a write would compare a
+    // canvas older than base and undo someone's edit. So the redraw renders
+    // at once (flushSync), with base already moved, and writes happen in a
+    // layout effect, in the same task as the render that caused them. An
+    // edit made here but not yet rendered when the redraw comes is kept by
+    // the three-way merge (mirror.ts), and the redraw's own render writes it.
     const draw = () => {
       pending = false;
       if (stopped) return;
-      // Send any local edit not yet written, so the redraw does not drop it.
       if (base.current) flush();
+      const prev = base.current;
       const shared = readShared(ydoc);
       const rebuilt = fromBlocksDocument(shared.document);
-      const c = latest.current;
-      c.setNodes((cur) => mergeNodes(cur, rebuilt.nodes));
-      c.setEdges((cur) => mergeEdges(cur, rebuilt.edges));
-      if (c.name !== shared.name) c.setName(shared.name);
       base.current = { name: shared.name, document: toBlocksDocument(rebuilt.nodes, rebuilt.edges) };
+      const c = latest.current;
+      flushSync(() => {
+        c.setNodes((cur) => mergeNodes(cur, rebuilt.nodes, prev?.document ?? null));
+        c.setEdges((cur) => mergeEdges(cur, rebuilt.edges, prev?.document ?? null));
+        c.setName((cur) => mergeName(cur, shared.name, prev?.name ?? null));
+      });
       void track(shared);
     };
     const track = async (shared: Diagram) => {
@@ -224,8 +235,8 @@ export function useLiveDiagram(opts: { diagramId: string; projectId: string; me:
   // After each local change, write it: at once, or at most every DRAG_MS
   // while a block is dragged. The drag's end always writes, since the
   // dragged block's position then differs from what was last written, or the
-  // timer below catches it.
-  useEffect(() => {
+  // timer below catches it. A layout effect: see draw.
+  useLayoutEffect(() => {
     if (!room.current || !base.current) return;
     const dragging = canvas.nodes.some((n) => n.dragging);
     const wait = DRAG_MS - (Date.now() - lastWrite.current);
