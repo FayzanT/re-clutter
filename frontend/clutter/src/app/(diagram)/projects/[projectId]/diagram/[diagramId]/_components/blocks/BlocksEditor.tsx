@@ -22,6 +22,8 @@ import { openAdminPorts, openToEveryoneWarning } from "@/lib/features/catalog/fi
 import { blockFields, blockTitle as titleOf, blockValuesErrors, defaultValues, paletteBlocks } from "@/lib/features/catalog/forms";
 import { useCatalog } from "@/lib/features/catalog/hooks";
 import { allLinkCards, linkCard, linkCheck, manifestsInPlay } from "@/lib/features/catalog/links";
+import LivePresence from "@/lib/features/collab/LivePresence";
+import { useLiveDiagram } from "@/lib/features/collab/useLiveDiagram";
 import { useConnections } from "@/lib/features/connections/hooks";
 import { blockIssues, problemsByBlock, type BlockRef } from "@/lib/features/deployments/compatibility";
 import { useCompatibility, useDiagramDeployments, useInvalidateDeploymentChecks, useRunLogs } from "@/lib/features/deployments/hooks";
@@ -219,6 +221,27 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
   const [edges, setEdges] = useState<BlockEdge[]>(initial.edges);
   const [name, setName] = useState(diagram.name ?? "");
   const [saved, setSaved] = useState<Snapshot>(() => ({ name: diagram.name ?? "", doc: toBlocksDocument(initial.nodes, initial.edges) }));
+
+  // Live editing (lib/features/collab): with the sync service running, the
+  // diagram's room holds the diagram and this canvas mirrors it. With it off
+  // or refused, nothing changes here.
+  const live = useLiveDiagram({
+    diagramId: diagram.id,
+    projectId,
+    me: meQ.isPending ? undefined : meQ.data ? { userId: meQ.data.userId, displayName: meQ.data.displayName } : null,
+    enabled: true,
+    canvas: { nodes, edges, name, setNodes, setEdges, setName },
+  });
+  // Live, "saved" is the room's last save, whoever made it.
+  const [seenSaved, setSeenSaved] = useState(live.savedDiagram);
+  if (live.savedDiagram !== seenSaved) {
+    setSeenSaved(live.savedDiagram);
+    if (live.savedDiagram) setSaved({ name: live.savedDiagram.name, doc: live.savedDiagram.document });
+  }
+  const liveRef = useRef(live);
+  useEffect(() => {
+    liveRef.current = live;
+  });
   // A diagram with no blocks yet opens on the Block tab: there is nothing to
   // deploy until something is drawn.
   const [tab, setTab] = useState<"block" | "deploy">(() => (initial.nodes.length > 0 ? "deploy" : "block"));
@@ -240,7 +263,9 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
   const resize = usePreferencesStore((s) => s.setInspectorWidth);
 
   const doc = toBlocksDocument(nodes, edges);
-  const dirty = !same({ name, doc }, saved);
+  // Live, the room's hash against its last save's; alone, the canvas against
+  // the last save here.
+  const dirty = live.live ? live.dirty === true : !same({ name, doc }, saved);
   const status = saveStatus({ dirty, saving: saveM.isPending });
   const guard = useLeaveGuard(dirty);
   const selectedNodes = nodes.filter((n) => n.selected);
@@ -315,6 +340,7 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
     const before = canvasNow.current;
     history.current = record(history.current, before);
     editing.current = null;
+    liveRef.current.stopCapturing();
     return before;
   }, []);
 
@@ -325,21 +351,27 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
     setNodes(step.canvas.nodes);
     setEdges(step.canvas.edges);
   };
-  const undoLast = () => restore(undo(history.current, canvasNow.current));
-  const redoNext = () => restore(redo(history.current, canvasNow.current));
+  // Live, Undo reverses only this person's own edits; the snapshot history
+  // would also wipe out everyone else's.
+  const undoLast = () => (live.live ? live.undo() : restore(undo(history.current, canvasNow.current)));
+  const redoNext = () => (live.live ? live.redo() : restore(redo(history.current, canvasNow.current)));
 
   // Every removal can be undone from its toast for a few seconds: Undo takes
   // the canvas back to before it, and the keys redo what came after.
   const offerUndo = (before: CanvasState, gone: BlockNodeType[], lines: number) => {
     const what = removalLabel(gone, lines, blockTitle);
     if (!what) return;
-    toast(`Removed ${what}`, { action: { label: "Undo", onClick: () => restore(undoTo(history.current, canvasNow.current, before)) } });
+    toast(`Removed ${what}`, {
+      action: { label: "Undo", onClick: () => (liveRef.current.live ? liveRef.current.undo() : restore(undoTo(history.current, canvasNow.current, before))) },
+    });
   };
 
   // addBlock adds a block with its top left corner at position on the canvas;
   // a VM dropped on a box goes into it.
   const addBlock = useCallback(
     (kind: string, position: XYPosition, box: string | null = null) => {
+      // Until the room's diagram arrives, an added block would be drawn over.
+      if (liveRef.current.waiting) return;
       const id = newBlockId();
       commit();
       setNodes((cur) => {
@@ -413,6 +445,7 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
   const dragBefore = useRef<CanvasState | null>(null);
   const onDragStart = () => {
     dragBefore.current = canvasNow.current;
+    live.stopCapturing();
   };
   const endDrag = (dragged: BlockNodeType[]) => {
     setDropTarget(null);
@@ -525,6 +558,8 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
     if (saveProblem || !token) return false;
     const trimmed = name.trim();
     const document = toBlocksDocument(nodes, edges);
+    // Live, the room first holds exactly what is saved, so its hash is the save's.
+    const hash = live.live ? await live.beforeSave({ name: trimmed, document }) : null;
     try {
       await saveM.mutateAsync({ projectId, diagramId: diagram.id, name: trimmed, document });
     } catch {
@@ -532,6 +567,7 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
     }
     setName(trimmed);
     setSaved({ name: trimmed, doc: document });
+    if (hash) live.afterSave(hash);
     invalidateChecks();
     return true;
   };
@@ -552,6 +588,7 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
         return;
       }
       const step = historyShortcut(e);
+      if (step && liveRef.current.waiting) return;
       if (!step || e.defaultPrevented || typingIn(e.target as HTMLElement | null)) return;
       e.preventDefault();
       keysRef.current[step]();
@@ -623,7 +660,7 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
       const c = sk && tk ? linkCard(manifests, catalog, sk, tk) : null;
       return c ? { ...c, sourceName: nameOf(source), targetName: nameOf(target) } : null;
     },
-    editable: wide,
+    editable: wide && !live.waiting,
   };
 
   const links: EdgeCard[] = useMemo(
@@ -790,6 +827,12 @@ export default function BlocksEditor({ projectId, diagram }: { projectId: string
               )}
               {nodes.length > 0 && <SummaryPill summary={summary} />}
             </div>
+            <div className="pointer-events-none absolute top-3 right-3 z-10">
+              <LivePresence state={live.state} peers={live.peers} />
+            </div>
+            {live.waiting && (
+              <div data-testid="live-waiting" className="bg-background/40 absolute inset-0 z-30 cursor-wait" aria-hidden />
+            )}
             {refusal && (
               <p
                 role="status"
