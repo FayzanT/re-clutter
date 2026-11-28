@@ -2,7 +2,7 @@
 
 The live sync service. It lets several signed-in users edit the same building-block diagram at once. It is a Node service that uses Yjs over WebSockets, with one room per diagram.
 
-`npm run dev` starts it with the rest of Clutter. The website does not connect to it yet.
+`npm run dev` starts it with the rest of Clutter, and the building-block editor connects to it. With the service off, the editor works alone.
 
 ## How it works
 
@@ -54,6 +54,18 @@ backend/collaboration/test/live/test-users.sh       # test users for the browser
 - `run-live-tests.sh` tests the service with A's real API, real local users and the frontend's own `y-websocket` client. It makes its own users and data and removes them at the end.
 - `test-users.sh` makes four users that stay: A, B and C in the organization "Live Sync Team", and D in "Live Sync Outsider". It also makes a project with a shared building-block diagram (the sample in `test/fixtures`), a second one and an old AWS diagram, plus a diagram for D. Running it again keeps what exists and signs fresh logins, which last 24 hours. `--reset` puts the team's diagrams back to how they started, and `--remove` deletes it all.
 - To sign a browser profile in as one of the users, open `http://localhost:3000`, open the console, and paste that user's `*-signin.js` file. The script prints where the files are, in `backend/devserver/.state/live-sync-users`. The same folder has Playwright storage files for automated browser tests. The files hold login tokens, so never share or commit them. Git ignores `.state`.
+
+## Try it in the browser
+
+To see three people edit one diagram together, on one Mac:
+
+1. Start Clutter on Node 22 with `npm run dev`. Its start message must show `Live sync: ws://localhost:8791`.
+2. From the repo root, run `backend/collaboration/test/live/test-users.sh`. It prints the diagrams' addresses. Logins last 24 hours, so run it again the next day. `--reset` also puts the diagrams back to how they started.
+3. Open three Chrome profiles (or one normal and two private windows). Two tabs in one profile share a login, so they count as one person.
+4. In each profile, open `http://localhost:3000` (exactly that address), open the console (Cmd+Option+J), paste the whole of `a-signin.js`, `b-signin.js` or `c-signin.js` from `backend/devserver/.state/live-sync-users`, and press Enter. If Chrome blocks the paste, type `allow pasting` first.
+5. Open the "Shared diagram" in all three. The top right of the canvas shows "Live: 3 people here".
+
+Things to try: add blocks in all three at once; move a block in one while renaming it in another; edit two fields of one block from two profiles; press Cmd+Z in one (it undoes only that person's change); press Save (all three show "Saved"). To go offline, use the developer tools' Network tab and choose "Offline", then wait 30 to 40 seconds for "Reconnecting"; turning off Wi-Fi does nothing, since everything runs on one Mac. A fourth profile signed in with `d-signin.js` is in another organization and cannot open the team's diagram. The full list, with results, is in `docs/reports/2026-11-28-live-sync-frontend-tests.md`.
 
 ## Settings
 
