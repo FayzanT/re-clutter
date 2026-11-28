@@ -65,6 +65,11 @@ To see three people edit one diagram together, on one Mac:
 4. In each profile, open `http://localhost:3000` (exactly that address), open the console (Cmd+Option+J), paste the whole of `a-signin.js`, `b-signin.js` or `c-signin.js` from `backend/devserver/.state/live-sync-users`, and press Enter. If Chrome blocks the paste, type `allow pasting` first.
 5. Open the "Shared diagram" in all three. The top right of the canvas shows "Live: 3 people here".
 
+Limits:
+
+- It works between browsers on one Mac only. The service listens only on this machine and allows only `http://localhost:3000`, so two people on two laptops cannot edit together yet.
+- Each person makes their own test users by running `test-users.sh` on their own machine. The sign-in files are not in git (`.state` is ignored), and one machine's files do not work on another, because each machine signs logins with its own secret.
+
 Things to try: add blocks in all three at once; move a block in one while renaming it in another; edit two fields of one block from two profiles; press Cmd+Z in one (it undoes only that person's change); press Save (all three show "Saved"). To go offline, use the developer tools' Network tab and choose "Offline", then wait 30 to 40 seconds for "Reconnecting"; turning off Wi-Fi does nothing, since everything runs on one Mac. A fourth profile signed in with `d-signin.js` is in another organization and cannot open the team's diagram. The full list, with results, is in `docs/reports/2026-11-28-live-sync-frontend-tests.md`.
 
 ## Settings
